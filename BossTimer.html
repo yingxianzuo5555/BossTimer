@@ -201,7 +201,7 @@ async function changePw(){
   document.getElementById('pwmsg').textContent='✅ 编辑密码已修改';
   document.getElementById('pwmsg').style.color='var(--green)';
   // 同步到云端
-  if(API_URL!=='__YOUR_WORKER_URL__'){
+  if(API_URL!=='https://boss-timer-api.siyue139374666.workers.dev'){
     try{
       const ap2=document.getElementById('adminPw').value||ap;
       await fetch(API_URL+'/api/admin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({admin_password:ap2,new_password:np})});
@@ -223,7 +223,7 @@ function updateUI(){
 }
 
 // ═══════════ API 配置 ═══════════
-const API_URL='__YOUR_WORKER_URL__'; // 部署 Worker 后替换
+const API_URL='https://boss-timer-api.siyue139374666.workers.dev'; // 部署 Worker 后替换
 let BL=[]; let ST={"sound_enabled":true,"sound_file":""};
 let ci=-1,ab=new Set(),cAudio=null,mt=new Set(),cp=-1;
 let isEditor=false;
@@ -350,7 +350,7 @@ function as(){
   syncToServer();
 }
 async function syncToServer(){
-  if(API_URL==='__YOUR_WORKER_URL__')return;
+  if(API_URL==='https://boss-timer-api.siyue139374666.workers.dev')return;
   try{
     const pw=sessionStorage.getItem('boss_pw')||'';
     const r=await fetch(API_URL+'/api/data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw,data:BL})});
@@ -358,7 +358,7 @@ async function syncToServer(){
   }catch(e){console.log('Sync error:',e);}
 }
 async function loadFromServer(){
-  if(API_URL==='__YOUR_WORKER_URL__'){
+  if(API_URL==='https://boss-timer-api.siyue139374666.workers.dev'){
     // 无 API 时用 localStorage
     BL=JSON.parse(localStorage.getItem('boss_data')||'[]');
     ST=JSON.parse(localStorage.getItem('boss_settings')||'{"sound_enabled":true,"sound_file":""}');
