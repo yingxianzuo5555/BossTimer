@@ -229,6 +229,7 @@ function render(){
   sb();
   var L=document.getElementById('list');
   if(!BL.length){L.innerHTML='<div class="empty"><div class="icon">📭</div>还没有 Boss，点击「＋ 添加 Boss」开始记录</div>';document.getElementById('si').textContent='';return;}
+  document.getElementById('si').textContent='🟢 '+rc+' 已刷新 | ⚡ '+ic+' 即将 | 🔵 '+wc+' 等待';
   var rc=0,wc=0,ic=0;
   BL.forEach(function(b){var s=gs(b);if(s.t==='ready')rc++;else if(s.t==='imminent')ic++;else if(s.t==='waiting')wc++;});
   document.getElementById('si').textContent='🟢 '+rc+' 已刷新 | ⚡ '+ic+' 即将 | 🔵 '+wc+' 等待';
@@ -327,7 +328,13 @@ function toggleTheme(){document.body.classList.toggle('light');var L=document.bo
 // ═══════════ 启动 ═══════════
 if(localStorage.getItem('boss_theme')==='light'){document.body.classList.add('light');document.getElementById('tb').textContent='☀️';}
 if(sessionStorage.getItem('boss_editor')==='1'){isEditor=true;}
+document.getElementById('si').textContent='⏳ 同步中...';
 loadFromServer().then(function(){
+  updateUI();
+  document.getElementById('si').textContent=BL.length?'☁️ 已同步 '+BL.length+' 条':'⚠ 云端无数据';
+  setInterval(crLoop,5000);
+}).catch(function(e){
+  document.getElementById('si').textContent='❌ 同步失败';
   updateUI();
   setInterval(crLoop,5000);
 });
