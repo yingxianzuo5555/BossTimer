@@ -1,0 +1,7 @@
+name = "boss-timer-api"
+main = "worker.js"
+compatibility_date = "2025-07-15"
+
+[[kv_namespaces]]
+binding = "BOSS_DATA"
+id = "__YOUR_KV_ID__"   # 创建 KV 后替换
