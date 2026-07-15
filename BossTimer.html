@@ -305,12 +305,12 @@ async function loadFromServer(){
   }catch(e){console.log('Load:',e);}
 }
 
-// 循环（30秒同步一次；CDN边缘缓存10秒吸收重复请求）
+// 循环（60秒同步一次；CDN边缘缓存10秒吸收重复请求）
 var _lastFetch=0;
 async function crLoop(){
   var now=Date.now();
-  // 30秒内只渲染倒计时，不拉取服务器（CDN边缘缓存10秒+ETag条件请求）
-  if(now-_lastFetch<30000){
+  // 60秒内只渲染倒计时，不拉取服务器（CDN边缘缓存10秒+ETag条件请求）
+  if(now-_lastFetch<60000){
     render();return;
   }
   _lastFetch=now;
