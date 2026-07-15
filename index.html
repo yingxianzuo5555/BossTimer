@@ -161,6 +161,7 @@ async function doLogin(){
   if(await checkPw(pw)){
     isEditor=true;
     sessionStorage.setItem('boss_editor','1');
+    sessionStorage.setItem('boss_pw',pw);
     closeLogin();
     updateUI();
   }else{
@@ -172,6 +173,7 @@ function toggleLogin(){
   if(isEditor){
     isEditor=false;
     sessionStorage.removeItem('boss_editor');
+    sessionStorage.removeItem('boss_pw');
     updateUI();
   }else{
     document.getElementById('pwInput').value='';
@@ -198,6 +200,13 @@ async function changePw(){
   document.getElementById('adminPw').value='';
   document.getElementById('pwmsg').textContent='✅ 编辑密码已修改';
   document.getElementById('pwmsg').style.color='var(--green)';
+  // 同步到云端
+  if(API_URL!=='https://boss-timer-api.siyue139374666.workers.dev'){
+    try{
+      const ap2=document.getElementById('adminPw').value||ap;
+      await fetch(API_URL+'/api/admin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({admin_password:ap2,new_password:np})});
+    }catch(e){}
+  }
 }
 
 function updateUI(){
@@ -210,15 +219,20 @@ function updateUI(){
     lb.textContent='🔒 登录';lb.classList.remove('editing');
     btns.forEach(function(id){document.getElementById(id).style.display='none';});
   }
-  render();
+  if(JSON.stringify(BL)!==lastRendered){render();lastRendered=JSON.stringify(BL);}
 }
 
-// ═══════════ 数据 ═══════════
-const D={'name':'','location':'','interval':'','respawn_rate':'','next_respawn':'','last_kill':'','drop_html':'','drop_color':'#ffffff'};
-let BL=JSON.parse(localStorage.getItem('boss_data')||'[]');
-let ST=JSON.parse(localStorage.getItem('boss_settings')||'{"sound_enabled":true,"sound_file":""}');
+// ═══════════ API 配置 ═══════════
+const API_URL='https://boss-timer-api.siyue139374666.workers.dev'; // 部署 Worker 后替换
+let BL=[]; let ST={"sound_enabled":true,"sound_file":""};
 let ci=-1,ab=new Set(),cAudio=null,mt=new Set(),cp=-1;
-const CL=[['#ffffff','白'],['#ff6b6b','红'],['#4ecdc4','青'],['#45b7d1','蓝'],['#96ceb4','绿'],['#ffeaa7','黄'],['#dda0dd','紫'],['#ff9ff3','粉'],['#feca57','金'],['#ff6b35','橙'],['#00d2d3','冰蓝'],['#5f27cd','靛']];
+let isEditor=false;
+let dataVersion=0;
+let lastRendered='';
+
+const D={'name':'','location':'','interval':'','respawn_rate':'','next_respawn':'','last_kill':'','drop_html':'','drop_color':'#ffffff'};
+
+
 
 function gs(b){
   if(!b.next_respawn||b.next_respawn==='请设置间隔时间')return{t:'none',d:1/0};
@@ -307,8 +321,8 @@ function pa(loop){if(!ST.sound_enabled)return;stopAudio();const s=localStorage.g
 function stopAudio(){if(cAudio){if(cAudio._osc){try{cAudio._osc.stop();clearInterval(cAudio._iv);}catch(e){}}else{try{cAudio.pause();cAudio.currentTime=0;}catch(e){}}cAudio=null;}}
 function pb(loop){try{const c=new(window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.type='square';g.gain.value=0.15;if(loop){cAudio={_ctx:c,_osc:o,_gain:g,_loop:true};o.frequency.value=880;o.start();let ph=0;cAudio._iv=setInterval(function(){ph=1-ph;o.frequency.value=ph?1100:880;},200);}else{o.frequency.value=880;o.start();setTimeout(function(){o.frequency.value=1100;},150);o.stop(c.currentTime+0.35);}}catch(e){}}
 
-function cr(){
-  if(!ST.sound_enabled)return;
+async function crLoop(){
+  await loadFromServer();
   const n=new Date();
   let best=null,bestIdx=-1,bestDiff=1/0;
   BL.forEach(function(b,i){
@@ -320,7 +334,7 @@ function cr(){
   });
   if(bestIdx>=0&&bestIdx!==cp){stopAudio();cp=bestIdx;const k=bestIdx+'_'+best.next_respawn;ab.add(k);pa(true);}
   if(cp>=0&&cp<BL.length){const b=BL[cp];try{const rt=new Date(b.next_respawn.replace(' ','T'));if((n-rt)/1000>120){stopAudio();cp=-1;}}catch(e){}}
-  render();
+  if(JSON.stringify(BL)!==lastRendered){render();lastRendered=JSON.stringify(BL);}
 }
 
 // 导入导出
@@ -331,13 +345,39 @@ function saveAll(){as();alert('✅ 已保存');}
 // 主题
 function toggleTheme(){document.body.classList.toggle('light');const L=document.body.classList.contains('light');document.getElementById('tb').textContent=L?'☀️':'🌙';localStorage.setItem('boss_theme',L?'light':'dark');}
 
-function as(){localStorage.setItem('boss_data',JSON.stringify(BL));}
+function as(){
+  localStorage.setItem('boss_data',JSON.stringify(BL));
+  syncToServer();
+}
+async function syncToServer(){
+  if(!API_URL||API_URL.startsWith('__'))return;
+  try{
+    const pw=sessionStorage.getItem('boss_pw')||'';
+    const r=await fetch(API_URL+'/api/data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw,data:BL})});
+    if(!r.ok){const j=await r.json();console.log('Save failed:',j.error);}
+  }catch(e){console.log('Sync error:',e);}
+}
+async function loadFromServer(){
+  if(!API_URL||API_URL.startsWith('__')){
+    // 无 API 时用 localStorage
+    BL=JSON.parse(localStorage.getItem('boss_data')||'[]');
+    ST=JSON.parse(localStorage.getItem('boss_settings')||'{"sound_enabled":true,"sound_file":""}');
+    return;
+  }
+  try{
+    const r=await fetch(API_URL+'/api/data');
+    if(r.ok){const d=await r.json();if(JSON.stringify(d)!==JSON.stringify(BL)){BL=d;dataVersion++;}}
+  }catch(e){console.log('Load error:',e);}
+}
 
 // 初始化
 if(localStorage.getItem('boss_theme')==='light'){document.body.classList.add('light');document.getElementById('tb').textContent='☀️';}
 if(sessionStorage.getItem('boss_editor')==='1'){isEditor=true;}
-updateUI();
-setInterval(cr,5000);
+(async function init(){
+  await loadFromServer();
+  updateUI();
+  setInterval(crLoop,5000);
+})();
 </script>
 </body>
 </html>
