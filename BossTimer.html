@@ -350,7 +350,7 @@ function as(){
   syncToServer();
 }
 async function syncToServer(){
-  if(API_URL==='https://boss-timer-api.siyue139374666.workers.dev')return;
+  if(!API_URL||API_URL.startsWith('__'))return;
   try{
     const pw=sessionStorage.getItem('boss_pw')||'';
     const r=await fetch(API_URL+'/api/data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw,data:BL})});
@@ -358,7 +358,7 @@ async function syncToServer(){
   }catch(e){console.log('Sync error:',e);}
 }
 async function loadFromServer(){
-  if(API_URL==='https://boss-timer-api.siyue139374666.workers.dev'){
+  if(!API_URL||API_URL.startsWith('__')){
     // 无 API 时用 localStorage
     BL=JSON.parse(localStorage.getItem('boss_data')||'[]');
     ST=JSON.parse(localStorage.getItem('boss_settings')||'{"sound_enabled":true,"sound_file":""}');
