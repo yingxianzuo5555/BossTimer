@@ -149,7 +149,7 @@ hr{border:none;border-top:1px solid var(--border);margin:10px 24px}
 
 <script>
 // ═══════════ 配置 ═══════════
-const API_URL='https://boss-timer-api.siyue139374666.workers.dev';
+const API_URL=''; // 同域 Pages Functions，相对路径
 const USE_API=true; // 设为 false 则只用本地存储
 
 // ═══════════ 密码 ═══════════
@@ -195,7 +195,7 @@ async function changePw(){
   document.getElementById('pwmsg').textContent='✅ 编辑密码已修改';document.getElementById('pwmsg').style.color='var(--green)';
   // 同步到云端
   if(USE_API){
-    try{await fetch(API_URL+'/api/admin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({admin_password:ap,new_password:np})});}catch(e){}
+    try{await fetch('/api/admin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({admin_password:ap,new_password:np})});}catch(e){}
   }
 }
 
@@ -284,7 +284,7 @@ async function syncToServer(){
   if(!USE_API)return;
   try{
     var pw=sessionStorage.getItem('boss_pw')||'';
-    await fetch(API_URL+'/api/data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw,data:BL})});
+    await fetch('/api/data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw,data:BL})});
   }catch(e){console.log('Sync:',e);}
 }
 async function loadFromServer(){
@@ -294,7 +294,7 @@ async function loadFromServer(){
   // 再尝试云端
   if(!USE_API)return;
   try{
-    var r=await fetch(API_URL+'/api/data');
+    var r=await fetch('/api/data');
     if(r.ok){var d=await r.json();BL=d;localStorage.setItem('boss_data',JSON.stringify(BL));}
   }catch(e){console.log('Load:',e);}
 }
