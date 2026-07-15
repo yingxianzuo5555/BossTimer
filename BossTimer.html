@@ -304,7 +304,7 @@ var _lastFetch=0;
 async function crLoop(){
   var now=Date.now();
   // 15秒内只渲染倒计时，不拉取服务器
-  if(now-_lastFetch<15000){
+  if(now-_lastFetch<60000){
     render();return;
   }
   _lastFetch=now;
