@@ -21,7 +21,7 @@ export async function onRequestGet(context) {
       headers: {
         'Content-Type': 'application/json',
         // CDN边缘缓存10秒，共享缓存10秒，过期后异步刷新5秒
-        'Cache-Control': 'public, max-age=10, s-maxage=10, stale-while-revalidate=5',
+        'Cache-Control': 'public, max-age=20, s-maxage=20, stale-while-revalidate=5',
         'ETag': etag
       }
     });

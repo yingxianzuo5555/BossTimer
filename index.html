@@ -305,12 +305,12 @@ async function loadFromServer(){
   }catch(e){console.log('Load:',e);}
 }
 
-// 循环（120秒同步一次，减少KV读取；CDN缓存层进一步降低回源）
+// 循环（30秒同步一次；CDN边缘缓存10秒吸收重复请求）
 var _lastFetch=0;
 async function crLoop(){
   var now=Date.now();
-  // 120秒内只渲染倒计时，不拉取服务器（CDN边缘缓存10秒+ETag条件请求）
-  if(now-_lastFetch<120000){
+  // 30秒内只渲染倒计时，不拉取服务器（CDN边缘缓存10秒+ETag条件请求）
+  if(now-_lastFetch<30000){
     render();return;
   }
   _lastFetch=now;
@@ -344,11 +344,11 @@ document.getElementById('si').textContent='⏳ 同步中...';
 loadFromServer().then(function(){
   updateUI();
   document.getElementById('si').textContent=BL.length?'☁️ 已同步 '+BL.length+' 条':'⚠ 云端无数据';
-  setInterval(crLoop,3000);
+  setInterval(crLoop,5000);
 }).catch(function(e){
   document.getElementById('si').textContent='❌ 同步失败';
   updateUI();
-  setInterval(crLoop,3000);
+  setInterval(crLoop,5000);
 });
 </script>
 </body>
