@@ -38,7 +38,7 @@ export async function onRequestPost(context) {
     const bossList = body.data;
     const pwHash = await sha256(pw);
     const storedHash = (await context.env.BOSS_DATA.get('editor_password'))
-      || '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918';
+      || '2991ba545171f81bfcab16430e453f64e3d3d51588a8a819055a9ff7c196109b';
     if (pwHash !== storedHash) {
       return new Response(JSON.stringify({ error: '密码错误' }), {
         status: 403,

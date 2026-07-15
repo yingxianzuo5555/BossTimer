@@ -5,7 +5,7 @@ export async function onRequestPost(context) {
     const newEditorPw = body.new_password || '';
     const adminHash = await sha256(adminPw);
     const storedAdmin = (await context.env.BOSS_DATA.get('admin_password'))
-      || 'aaffebecec560fec66e75f24062224ffa4e07696d2ae9a1fee3707c3f8fd9373';
+      || '6baa5045c0469b31ede759b6262da9130776b0d5aa694e4b670ac0cd29379459';
     if (adminHash !== storedAdmin) {
       return new Response(JSON.stringify({ error: '管理员密码错误' }), { status: 403,
         headers: { 'Content-Type': 'application/json' } });

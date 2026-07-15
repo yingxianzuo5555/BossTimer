@@ -31,7 +31,7 @@ export default {
         // SHA-256 验证编辑密码 (默认: admin)
         const pwHash = await sha256(pw);
         const storedHash = (await env.BOSS_DATA.get('editor_password')) 
-          || '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918';
+          || '2991ba545171f81bfcab16430e453f64e3d3d51588a8a819055a9ff7c196109b';
         
         if (pwHash !== storedHash) {
           return new Response(JSON.stringify({ error: '密码错误' }), { status: 403, headers });
@@ -57,7 +57,7 @@ export default {
         
         const adminHash = await sha256(adminPw);
         const storedAdmin = (await env.BOSS_DATA.get('admin_password'))
-          || 'aaffebecec560fec66e75f24062224ffa4e07696d2ae9a1fee3707c3f8fd9373';
+          || '6baa5045c0469b31ede759b6262da9130776b0d5aa694e4b670ac0cd29379459';
         
         if (adminHash !== storedAdmin) {
           return new Response(JSON.stringify({ error: '管理员密码错误' }), { status: 403, headers });
