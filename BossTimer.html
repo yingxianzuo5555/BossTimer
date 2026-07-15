@@ -294,7 +294,7 @@ async function loadFromServer(){
   if(!USE_API)return;
   try{
     var r=await fetch(API_URL+'/api/data');
-    if(r.ok){var d=await r.json();if(JSON.stringify(d)!==JSON.stringify(BL)){BL=d;localStorage.setItem('boss_data',JSON.stringify(BL));}}
+    if(r.ok){var d=await r.json();BL=d;localStorage.setItem('boss_data',JSON.stringify(BL));}
   }catch(e){console.log('Load:',e);}
 }
 
