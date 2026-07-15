@@ -287,6 +287,7 @@ async function syncToServer(){
     await fetch('/api/data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw,data:BL})});
   }catch(e){console.log('Sync:',e);}
 }
+var _lastETag='';
 async function loadFromServer(){
   // 先加载本地
   BL=JSON.parse(localStorage.getItem('boss_data')||'[]');
@@ -294,17 +295,22 @@ async function loadFromServer(){
   // 再尝试云端
   if(!USE_API)return;
   try{
-    var r=await fetch('/api/data');
-    if(r.ok){var d=await r.json();BL=d;localStorage.setItem('boss_data',JSON.stringify(BL));}
+    var opts={};if(_lastETag)opts.headers={'If-None-Match':_lastETag};
+    var r=await fetch('/api/data',opts);
+    if(r.status===304)return;
+    if(r.ok){
+      var et=r.headers.get('ETag');if(et)_lastETag=et;
+      var d=await r.json();BL=d;localStorage.setItem('boss_data',JSON.stringify(BL));
+    }
   }catch(e){console.log('Load:',e);}
 }
 
-// 循环
+// 循环（120秒同步一次，减少KV读取；CDN缓存层进一步降低回源）
 var _lastFetch=0;
 async function crLoop(){
   var now=Date.now();
-  // 15秒内只渲染倒计时，不拉取服务器
-  if(now-_lastFetch<60000){
+  // 120秒内只渲染倒计时，不拉取服务器（CDN边缘缓存10秒+ETag条件请求）
+  if(now-_lastFetch<120000){
     render();return;
   }
   _lastFetch=now;

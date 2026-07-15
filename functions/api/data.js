@@ -1,20 +1,29 @@
 export async function onRequestGet(context) {
   try {
-    // Test if env is accessible
-    var envKeys = context.env ? Object.keys(context.env) : [];
     var hasKV = !!(context.env && context.env.BOSS_DATA);
-    var info = { envKeys: envKeys, hasKV: hasKV };
-    
     if (!hasKV) {
-      return new Response(JSON.stringify(info), {
+      return new Response(JSON.stringify({error:'KV not bound'}), {
+        status: 500,
         headers: { 'Content-Type': 'application/json' }
       });
     }
-    
     const raw = await context.env.BOSS_DATA.get('boss_list');
     const data = raw ? JSON.parse(raw) : [];
+    const etag = '"' + (raw ? raw.length.toString(36) : '0') + '-' + (data.length || 0) + '"';
+    
+    // 检查 If-None-Match 实现条件请求，减少带宽
+    const ifNoneMatch = context.request.headers.get('If-None-Match');
+    if (ifNoneMatch && ifNoneMatch === etag) {
+      return new Response(null, { status: 304, headers: { 'ETag': etag } });
+    }
+    
     return new Response(JSON.stringify(data), {
-      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' }
+      headers: {
+        'Content-Type': 'application/json',
+        // CDN边缘缓存10秒，共享缓存10秒，过期后异步刷新5秒
+        'Cache-Control': 'public, max-age=10, s-maxage=10, stale-while-revalidate=5',
+        'ETag': etag
+      }
     });
   } catch(e) {
     return new Response(JSON.stringify({error:e.message}), {
