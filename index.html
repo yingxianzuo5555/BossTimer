@@ -313,8 +313,7 @@ async function crLoop(){
     if(bestIdx>=0&&bestIdx!==cp){stopAudio();cp=bestIdx;ab.add(bestIdx+'_'+best.next_respawn);pa(true);}
     if(cp>=0&&cp<BL.length){try{var rb=BL[cp],rt2=new Date(rb.next_respawn.replace(' ','T'));if((n-rt2)/1000>120){stopAudio();cp=-1;}}catch(e){}}
   }
-  var cur=JSON.stringify(BL);
-  if(cur!==lastRendered){render();lastRendered=cur;}
+  render();
 }
 
 // 导入导出
