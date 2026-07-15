@@ -136,7 +136,7 @@ hr{border:none;border-top:1px solid var(--border);margin:10px 24px}
     <h3>⚙ 全局设置</h3>
     <div class="sg"><label>刷新提示音</label><div class="tr"><label class="toggle"><input type="checkbox" id="se" checked><span class="slider"></span></label><span style="font-size:12px;color:var(--sub)" id="ss">启用</span></div></div>
     <div class="sg"><label>自定义音频（选填）</label><div class="fr"><input type="text" id="sf" placeholder="留空使用默认蜂鸣" readonly><button onclick="pickSound()">浏览</button><button onclick="testSound()" style="background:var(--acc);color:#fff;border:none">▶ 试听</button></div><div class="sm" id="smsg"></div></div>
-    <div class="sg"><label>修改编辑密码</label><div class="fr"><input type="password" id="newPw" placeholder="留空不修改"><button onclick="changePw()" style="background:var(--purple);color:#fff;border:none">修改</button></div><div class="sm" id="pwmsg"></div></div>
+    <div class="sg"><label>修改编辑密码（需管理员权限）</label><div class="fr" style="flex-direction:column;gap:4px;align-items:stretch"><input type="password" id="newPw" placeholder="新编辑密码"><div class="fr"><input type="password" id="adminPw" placeholder="管理员密码"><button onclick="changePw()" style="background:var(--purple);color:#fff;border:none;white-space:nowrap">修改</button></div></div><div class="sm" id="pwmsg"></div></div>
     <div class="btn-row">
       <button class="btn-cancel" onclick="closeSettings()">取消</button>
       <button class="btn-primary" onclick="saveSettings()">保存</button>
@@ -146,12 +146,13 @@ hr{border:none;border-top:1px solid var(--border);margin:10px 24px}
 
 <script>
 // ═══════════ 权限 ═══════════
-const DEFAULT_PW_HASH='8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918';
+const DEFAULT_EDITOR_HASH='8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918';
+const DEFAULT_ADMIN_HASH='aaffebecec560fec66e75f24062224ffa4e07696d2ae9a1fee3707c3f8fd9373';
 let isEditor=false;
 
 async function sha256(m){const e=new TextEncoder().encode(m);const h=await crypto.subtle.digest('SHA-256',e);return Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,'0')).join('');}
 
-function getStoredPwHash(){return localStorage.getItem('boss_pw_hash')||DEFAULT_PW_HASH;}
+function getStoredPwHash(){return localStorage.getItem('boss_pw_hash')||DEFAULT_EDITOR_HASH;}
 
 async function checkPw(pw){const h=await sha256(pw);return h===getStoredPwHash();}
 
@@ -184,11 +185,18 @@ function closeLogin(){document.getElementById('loginModal').classList.remove('sh
 
 async function changePw(){
   const np=document.getElementById('newPw').value;
+  const ap=document.getElementById('adminPw').value;
   if(!np){document.getElementById('pwmsg').textContent='请输入新密码';document.getElementById('pwmsg').style.color='var(--red)';return;}
+  if(!ap){document.getElementById('pwmsg').textContent='请输入管理员密码';document.getElementById('pwmsg').style.color='var(--red)';return;}
+  // 验证管理员密码
+  const ah=await sha256(ap);
+  const storedAdmin=localStorage.getItem('boss_admin_hash')||DEFAULT_ADMIN_HASH;
+  if(ah!==storedAdmin){document.getElementById('pwmsg').textContent='管理员密码错误';document.getElementById('pwmsg').style.color='var(--red)';return;}
   const h=await sha256(np);
   localStorage.setItem('boss_pw_hash',h);
   document.getElementById('newPw').value='';
-  document.getElementById('pwmsg').textContent='✅ 密码已修改';
+  document.getElementById('adminPw').value='';
+  document.getElementById('pwmsg').textContent='✅ 编辑密码已修改';
   document.getElementById('pwmsg').style.color='var(--green)';
 }
 
@@ -244,8 +252,10 @@ function render(){
     const rst=s.t==='ready'?'已刷新 — '+b.next_respawn:s.t!=='none'?'下次：'+b.next_respawn:'下次刷新：—';
     const rsc=s.t==='ready'?'ready':s.t==='imminent'?'imminent':'';
     const ro=ed?'':'readonly';
-    const h=ed?'':'<span class="readonly-badge">只读</span>';
-    const acts=ed?('<div class="acts"><button class="bk" onclick="mk('+i+')">⚔ 击杀</button><button class="bd" onclick="od('+i+')">📋 掉落</button><button class="'+(mt.has(i)?'bm-on':'bm-off')+' acts-btn" onclick="event.stopPropagation();muteBoss('+i+')">'+(mt.has(i)?'🔇 已关':'🔊 提示音')+'</button><button class="bx" onclick="db('+i+')">✕</button></div>'):('<div class="acts"><span style="font-size:11px;color:var(--sub);padding:5px 0">🔒 只读</span></div>');
+    const h='';
+    const acts=ed
+  ?('<div class="acts"><button class="bk" onclick="mk('+i+')">⚔ 击杀</button><button class="bd" onclick="od('+i+')">📋 掉落</button><button class="'+(mt.has(i)?'bm-on':'bm-off')+' acts-btn" onclick="event.stopPropagation();muteBoss('+i+')">'+(mt.has(i)?'🔇 已关':'🔊 提示音')+'</button><button class="bx" onclick="db('+i+')">✕</button></div>')
+  :('<div class="acts"><button class="bk" onclick="mk('+i+')" disabled style="opacity:.35;cursor:not-allowed">🔒 击杀</button><button class="bd" onclick="vd('+i+')">📋 查看</button><button class="'+(mt.has(i)?'bm-on':'bm-off')+' acts-btn" onclick="event.stopPropagation();muteBoss('+i+')">'+(mt.has(i)?'🔇 已关':'🔊 提示音')+'</button></div>');
     const ekBtn=ed&&b.last_kill?'<button class="bet" onclick="event.stopPropagation();ek('+i+')">✎ 修正</button>':'';
     return '<div class="card '+cls+'"><div class="card-top"><span class="cd '+ct+'">'+cdt+'</span><input class="ni" value="'+es(b.name)+'" placeholder="Boss 名称" onchange="uf('+i+',\'name\',this.value)" '+ro+'>'+h+'<span class="it">间隔 <input type="number" step="0.1" value="'+es(b.interval)+'" onchange="uf('+i+',\'interval\',this.value)" '+ro+'><span class="un">时</span></span><span class="it">刷新率 <input value="'+es(b.respawn_rate)+'" onchange="uf('+i+',\'respawn_rate\',this.value)" '+ro+'><span class="un">%</span></span>'+acts+'</div><div class="card-mid"><span class="rt '+rsc+'">'+rst+'</span>'+(b.last_kill?'<span class="rt">上次击杀：'+b.last_kill+ekBtn+'</span>':'')+'</div></div>';
   }).join('');
@@ -262,22 +272,31 @@ function ek(i){if(!isEditor)return;const b=BL[i],cur=(b.last_kill||ft(new Date()
 
 // 静音
 function muteBoss(i){
-  if(!isEditor)return;
   if(mt.has(i)){mt.delete(i);}else{mt.add(i);if(cp===i){stopAudio();cp=-1;}}
-  render();as();
+  render();if(isEditor)as();
 }
 
 // 掉落
 let ssr=null;
 document.addEventListener('selectionchange',function(){const sel=window.getSelection();if(sel.rangeCount&&!sel.isCollapsed){const ed=document.getElementById('de');if(ed&&ed.contains(sel.anchorNode))ssr={range:sel.getRangeAt(0).cloneRange()};}});
-function od(i){if(!isEditor)return;ci=i;const ed=document.getElementById('de');ed.innerHTML=BL[i].drop_html||(BL[i].drop_info||'').replace(/\n/g,'<br>');bct(BL[i].drop_color||'#ffffff');document.getElementById('dm').classList.add('show');setTimeout(function(){ed.focus();},100);}
+
+function vd(i){
+  const ed=document.getElementById('de');
+  ed.innerHTML=BL[i].drop_html||(BL[i].drop_info||'').replace(/\n/g,'<br>');
+  ed.contentEditable='false';
+  ed.style.cursor='default';
+  document.getElementById('ct').innerHTML='<span class="tip">🔒 只读模式，登录后可编辑</span>';
+  document.getElementById('dm').classList.add('show');
+}
+
+function od(i){if(!isEditor)return;ci=i;const ed=document.getElementById('de');ed.contentEditable='true';ed.style.cursor='';ed.innerHTML=BL[i].drop_html||(BL[i].drop_info||'').replace(/\n/g,'<br>');bct(BL[i].drop_color||'#ffffff');document.getElementById('dm').classList.add('show');setTimeout(function(){ed.focus();},100);}
 function closeDrop(){document.getElementById('dm').classList.remove('show');ci=-1;ssr=null;}
 function bct(ac){const tb=document.getElementById('ct');tb.innerHTML='';CL.forEach(function(v){const hex=v[0],nm=v[1],dot=document.createElement('span');dot.className='color-dot'+(hex===ac?' active':'');dot.style.background=hex;dot.title=nm;dot.addEventListener('mousedown',function(e){e.preventDefault();ac2(hex);tb.querySelectorAll('.color-dot').forEach(function(d){d.classList.remove('active');});dot.classList.add('active');if(ci>=0)BL[ci].drop_color=hex;});tb.appendChild(dot);});}
 function ac2(c){const ed=document.getElementById('de');ed.focus();let range=null;if(ssr&&ssr.range&&ed.contains(ssr.range.commonAncestorContainer))range=ssr.range;if(!range){const sel=window.getSelection();if(sel.rangeCount&&!sel.isCollapsed&&ed.contains(sel.anchorNode))range=sel.getRangeAt(0);}if(!range)return;const tx=range.toString();if(!tx.trim())return;range.deleteContents();const sp=document.createElement('span');sp.style.color=c;sp.textContent=tx;range.insertNode(sp);const nr=document.createRange();nr.setStartAfter(sp);nr.collapse(true);const sel2=window.getSelection();sel2.removeAllRanges();sel2.addRange(nr);ssr=null;}
 function saveDrop(){if(ci<0)return;const ed=document.getElementById('de');BL[ci].drop_html=ed.innerHTML;BL[ci].drop_info=ed.innerText;closeDrop();as();}
 
 // 设置
-function openSettings(){document.getElementById('se').checked=ST.sound_enabled;document.getElementById('sf').value=ST.sound_file||'';document.getElementById('ss').textContent=ST.sound_enabled?'启用':'关闭';document.getElementById('smsg').textContent='';document.getElementById('newPw').value='';document.getElementById('pwmsg').textContent='';document.getElementById('sm2').classList.add('show');document.getElementById('se').onchange=function(){document.getElementById('ss').textContent=this.checked?'启用':'关闭';};}
+function openSettings(){document.getElementById('se').checked=ST.sound_enabled;document.getElementById('sf').value=ST.sound_file||'';document.getElementById('ss').textContent=ST.sound_enabled?'启用':'关闭';document.getElementById('smsg').textContent='';document.getElementById('newPw').value='';document.getElementById('pwmsg').textContent='';try{document.getElementById('adminPw').value='';}catch(e){}document.getElementById('sm2').classList.add('show');document.getElementById('se').onchange=function(){document.getElementById('ss').textContent=this.checked?'启用':'关闭';};}
 function closeSettings(){document.getElementById('sm2').classList.remove('show');}
 function pickSound(){const inp=document.createElement('input');inp.type='file';inp.accept='audio/*';inp.onchange=function(){if(this.files[0]){document.getElementById('sf').value=this.files[0].name;const r=new FileReader();r.onload=function(e){try{localStorage.setItem('boss_sound_data',e.target.result);}catch(ex){}};r.readAsDataURL(this.files[0]);}};inp.click();}
 function testSound(){pa(false);}
