@@ -10,3 +10,4 @@ boss_settings.json
 /target/
 Cargo.*
 src/
+wrangler.toml
