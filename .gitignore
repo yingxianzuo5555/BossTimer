@@ -1,0 +1,12 @@
+*.pyc
+__pycache__/
+.DS_Store
+build/
+dist/
+*.spec
+.pyinstaller_cache/
+boss_data.json
+boss_settings.json
+/target/
+Cargo.*
+src/

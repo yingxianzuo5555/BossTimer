@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Boss 刷新计时器</title>
+<style>
+:root{--bg:#1e1e2e;--surface:#2a2a3c;--card:#2a2a3c;--card-ready:#1a3a1a;--card-imminent:#3d1111;--text:#cdd6f4;--sub:#6c7086;--acc:#3498db;--red:#e74c3c;--green:#27ae60;--purple:#8e44ad;--border:#444;--inp:#313145;--hov:#3a3a4c}
+.light{--bg:#f5f6fa;--surface:#e8e9ee;--card:#fff;--card-ready:#f0fff0;--card-imminent:#fff0f0;--text:#2c3e50;--sub:#7f8c8d;--border:#ddd;--inp:#f0f0f0;--hov:#e0e0e0}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,'Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.topbar{display:flex;align-items:center;padding:16px 24px 0;gap:10px;flex-wrap:wrap}
+.topbar .title{font-size:22px;font-weight:bold;flex:1}
+.topbar button{padding:8px 16px;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap;transition:.15s}
+.topbar button:hover{filter:brightness(1.15)}
+.btn-ico{background:transparent;color:var(--text);font-size:18px!important;padding:6px 10px!important}
+.btn-ico:hover{background:var(--hov)}
+.btn-save{background:var(--green);color:#fff}
+.btn-add{background:var(--purple);color:#fff}
+.btn-login{border:1px solid var(--border)!important;background:transparent;color:var(--text)}
+.btn-login.editing{background:var(--green);color:#fff;border:none!important}
+hr{border:none;border-top:1px solid var(--border);margin:10px 24px}
+#list{padding:0 20px 20px;max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:6px}
+.card{border-radius:10px;padding:10px 14px;background:var(--card);transition:.3s}
+.card.ready{background:var(--card-ready);border:1px solid rgba(39,174,96,.4)}
+@keyframes pulse{0%,100%{box-shadow:0 0 8px rgba(255,107,107,.4)}50%{box-shadow:0 0 20px rgba(255,107,107,.8),0 0 40px rgba(255,107,107,.3)}}
+.card.imminent{background:var(--card-imminent);border:1px solid rgba(255,107,107,.6);animation:pulse 1.5s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.5}}
+.card-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.cd{font-size:17px;font-weight:bold;white-space:nowrap;min-width:105px}
+.cd.ready{color:#2ecc71}
+.cd.imminent{color:#ff6b6b;animation:blink .8s ease-in-out infinite}
+.cd.waiting{color:var(--sub)}
+.ni{padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--inp);color:var(--text);font-size:14px;font-weight:600;outline:none;min-width:130px;flex:1;max-width:200px}
+.ni:focus{border-color:var(--acc)}
+.ni[readonly]{opacity:.7;cursor:default}
+.it{display:inline-flex;align-items:center;gap:2px;font-size:12px;color:var(--sub);white-space:nowrap}
+.it input{padding:4px 6px;border-radius:5px;border:1px solid var(--border);background:var(--inp);color:var(--text);font-size:12px;outline:none;width:40px;text-align:center}
+.it input:focus{border-color:var(--acc)}
+.it input[readonly]{opacity:.7;cursor:default}
+.un{font-size:11px}
+.card-mid{display:flex;align-items:center;gap:12px;margin-top:5px;flex-wrap:wrap;font-size:11px;color:var(--sub)}
+.rt{white-space:nowrap}.rt.ready{color:#2ecc71}.rt.imminent{color:#ff6b6b}
+.acts{display:flex;gap:4px;margin-left:auto}
+.acts button{padding:5px 12px;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;transition:.15s}
+.acts button:hover{filter:brightness(1.15)}
+.acts button:disabled{opacity:.4;cursor:not-allowed;filter:none}
+.bk{background:var(--red);color:#fff}
+.bd{background:var(--acc);color:#fff}
+.bx{background:transparent;border:1px solid var(--border)!important;color:var(--sub)}
+.bm-on{background:#e74c3c;color:#fff}.bm-off{background:#27ae60;color:#fff}
+.bet{cursor:pointer;font-size:10px;margin-left:4px;padding:1px 6px;border-radius:4px;border:1px solid var(--border);background:var(--inp);color:var(--acc);transition:.15s}
+.bet:hover{background:var(--acc);color:#fff;border-color:var(--acc)}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;justify-content:center;align-items:center}
+.modal-overlay.show{display:flex}
+.modal{background:var(--surface);border-radius:14px;padding:24px;min-width:400px;max-width:620px;width:90%;max-height:85vh;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,.4)}
+.modal h3{margin-bottom:10px;font-size:17px}
+.rich-editor{min-height:160px;max-height:300px;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--inp);color:var(--text);font-size:13px;overflow-y:auto;line-height:1.6;outline:none}
+.rich-editor:focus{border-color:var(--acc)}
+.color-toolbar{display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin:8px 0}
+.color-dot{width:28px;height:28px;border-radius:50%;border:2px solid transparent;cursor:pointer;transition:.15s}
+.color-dot:hover{transform:scale(1.15)}
+.color-dot.active{border-color:#fff;box-shadow:0 0 8px rgba(255,255,255,.5)}
+.tip{font-size:11px;color:var(--sub);margin:4px 0}
+.btn-row{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+.btn-row button{padding:8px 20px;border:none;border-radius:7px;cursor:pointer;font-size:13px;font-weight:600}
+.btn-primary{background:var(--green);color:#fff}
+.btn-cancel{background:transparent;border:1px solid var(--border)!important;color:var(--text)}
+.sg{margin-bottom:16px}.sg label{display:block;font-size:13px;margin-bottom:4px}
+.tr{display:flex;align-items:center;gap:10px}
+.fr{display:flex;gap:6px;align-items:center}
+.fr input[type=text]{flex:1;padding:7px 10px;border-radius:6px;border:1px solid var(--border);background:var(--inp);color:var(--text);font-size:13px}
+.fr button{padding:7px 12px;border:1px solid var(--border);border-radius:6px;cursor:pointer;background:var(--surface);color:var(--text);font-size:12px}
+.sm{font-size:12px;margin-top:4px}
+.toggle{position:relative;display:inline-block;width:44px;height:24px}
+.toggle input{opacity:0;width:0;height:0}
+.toggle .slider{position:absolute;cursor:pointer;inset:0;background:#555;border-radius:24px;transition:.3s}
+.toggle .slider::before{content:'';position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s}
+.toggle input:checked+.slider{background:var(--green)}
+.toggle input:checked+.slider::before{transform:translateX(20px)}
+.empty{text-align:center;padding:60px;color:var(--sub)}
+.empty .icon{font-size:48px;margin-bottom:10px}
+.si{font-size:11px;color:var(--sub);margin-right:8px}
+.pw-input{padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--inp);color:var(--text);font-size:14px;width:100%;outline:none;margin:8px 0}
+.pw-input:focus{border-color:var(--acc)}
+.pw-error{color:var(--red);font-size:12px;margin-top:4px;display:none}
+.readonly-badge{font-size:10px;background:var(--sub);color:#fff;padding:2px 8px;border-radius:10px;margin-left:8px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="title">🎮 Boss 刷新计时器</span>
+  <span class="si" id="si"></span>
+  <button class="btn-ico" onclick="toggleTheme()" id="tb">🌙</button>
+  <button class="btn-ico" onclick="openSettings()">⚙</button>
+  <button class="btn-login" id="loginBtn" onclick="toggleLogin()">🔒 登录</button>
+  <button class="btn-ex" id="btnExport" onclick="exportData()" style="display:none">📤 导出</button>
+  <button class="btn-ex" id="btnImport" onclick="importData()" style="display:none">📥 导入</button>
+  <button class="btn-save" id="btnSave" onclick="saveAll()" style="display:none">💾 保存</button>
+  <button class="btn-add" id="btnAdd" onclick="addBoss()" style="display:none">＋ 添加 Boss</button>
+</div>
+<hr>
+<div id="list"></div>
+
+<!-- 登录弹窗 -->
+<div class="modal-overlay" id="loginModal">
+  <div class="modal" style="min-width:360px;max-width:400px">
+    <h3>🔐 登录编辑</h3>
+    <p class="tip">输入密码获取编辑权限</p>
+    <input type="password" class="pw-input" id="pwInput" placeholder="请输入密码" onkeydown="if(event.key==='Enter')doLogin()">
+    <p class="pw-error" id="pwError">密码错误，请重试</p>
+    <div class="btn-row">
+      <button class="btn-cancel" onclick="closeLogin()">取消</button>
+      <button class="btn-primary" onclick="doLogin()">登录</button>
+    </div>
+  </div>
+</div>
+
+<!-- 掉落弹窗 -->
+<div class="modal-overlay" id="dm">
+  <div class="modal">
+    <h3>📦 掉落信息编辑</h3>
+    <p class="tip">选中文 → 点色块 → 逐段着色</p>
+    <div class="color-toolbar" id="ct"></div>
+    <div class="rich-editor" id="de" contenteditable="true"></div>
+    <div class="btn-row">
+      <button class="btn-cancel" onclick="closeDrop()">取消</button>
+      <button class="btn-primary" onclick="saveDrop()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 设置弹窗 -->
+<div class="modal-overlay" id="sm2">
+  <div class="modal">
+    <h3>⚙ 全局设置</h3>
+    <div class="sg"><label>刷新提示音</label><div class="tr"><label class="toggle"><input type="checkbox" id="se" checked><span class="slider"></span></label><span style="font-size:12px;color:var(--sub)" id="ss">启用</span></div></div>
+    <div class="sg"><label>自定义音频（选填）</label><div class="fr"><input type="text" id="sf" placeholder="留空使用默认蜂鸣" readonly><button onclick="pickSound()">浏览</button><button onclick="testSound()" style="background:var(--acc);color:#fff;border:none">▶ 试听</button></div><div class="sm" id="smsg"></div></div>
+    <div class="sg"><label>修改编辑密码</label><div class="fr"><input type="password" id="newPw" placeholder="留空不修改"><button onclick="changePw()" style="background:var(--purple);color:#fff;border:none">修改</button></div><div class="sm" id="pwmsg"></div></div>
+    <div class="btn-row">
+      <button class="btn-cancel" onclick="closeSettings()">取消</button>
+      <button class="btn-primary" onclick="saveSettings()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════ 权限 ═══════════
+const DEFAULT_PW_HASH='8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918';
+let isEditor=false;
+
+async function sha256(m){const e=new TextEncoder().encode(m);const h=await crypto.subtle.digest('SHA-256',e);return Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,'0')).join('');}
+
+function getStoredPwHash(){return localStorage.getItem('boss_pw_hash')||DEFAULT_PW_HASH;}
+
+async function checkPw(pw){const h=await sha256(pw);return h===getStoredPwHash();}
+
+async function doLogin(){
+  const pw=document.getElementById('pwInput').value;
+  if(await checkPw(pw)){
+    isEditor=true;
+    sessionStorage.setItem('boss_editor','1');
+    closeLogin();
+    updateUI();
+  }else{
+    document.getElementById('pwError').style.display='block';
+  }
+}
+
+function toggleLogin(){
+  if(isEditor){
+    isEditor=false;
+    sessionStorage.removeItem('boss_editor');
+    updateUI();
+  }else{
+    document.getElementById('pwInput').value='';
+    document.getElementById('pwError').style.display='none';
+    document.getElementById('loginModal').classList.add('show');
+    setTimeout(function(){document.getElementById('pwInput').focus();},100);
+  }
+}
+
+function closeLogin(){document.getElementById('loginModal').classList.remove('show');}
+
+async function changePw(){
+  const np=document.getElementById('newPw').value;
+  if(!np){document.getElementById('pwmsg').textContent='请输入新密码';document.getElementById('pwmsg').style.color='var(--red)';return;}
+  const h=await sha256(np);
+  localStorage.setItem('boss_pw_hash',h);
+  document.getElementById('newPw').value='';
+  document.getElementById('pwmsg').textContent='✅ 密码已修改';
+  document.getElementById('pwmsg').style.color='var(--green)';
+}
+
+function updateUI(){
+  const lb=document.getElementById('loginBtn');
+  const btns=['btnAdd','btnSave','btnExport','btnImport'];
+  if(isEditor){
+    lb.textContent='🔓 编辑中';lb.classList.add('editing');
+    btns.forEach(function(id){document.getElementById(id).style.display='';});
+  }else{
+    lb.textContent='🔒 登录';lb.classList.remove('editing');
+    btns.forEach(function(id){document.getElementById(id).style.display='none';});
+  }
+  render();
+}
+
+// ═══════════ 数据 ═══════════
+const D={'name':'','location':'','interval':'','respawn_rate':'','next_respawn':'','last_kill':'','drop_html':'','drop_color':'#ffffff'};
+let BL=JSON.parse(localStorage.getItem('boss_data')||'[]');
+let ST=JSON.parse(localStorage.getItem('boss_settings')||'{"sound_enabled":true,"sound_file":""}');
+let ci=-1,ab=new Set(),cAudio=null,mt=new Set(),cp=-1;
+const CL=[['#ffffff','白'],['#ff6b6b','红'],['#4ecdc4','青'],['#45b7d1','蓝'],['#96ceb4','绿'],['#ffeaa7','黄'],['#dda0dd','紫'],['#ff9ff3','粉'],['#feca57','金'],['#ff6b35','橙'],['#00d2d3','冰蓝'],['#5f27cd','靛']];
+
+function gs(b){
+  if(!b.next_respawn||b.next_respawn==='请设置间隔时间')return{t:'none',d:1/0};
+  try{const rt=new Date(b.next_respawn.replace(' ','T')),n=new Date(),df=(rt-n)/1000;
+    if(df<=0)return{t:'ready',d:Math.abs(df)};
+    if(df<=600)return{t:'imminent',d:df};
+    return{t:'waiting',d:df};
+  }catch(e){return{t:'none',d:1/0};}
+}
+function sb(){BL.sort((a,b)=>{const sa=gs(a),sb2=gs(b);const o={ready:0,imminent:1,waiting:2,none:3};return o[sa.t]-o[sb2.t]||sa.d-sb2.d;});}
+function fc(d){if(d<=0)return'已刷新！';const h=Math.floor(d/3600),m=Math.floor((d%3600)/60),s=Math.floor(d%60);if(h>0)return h+'时'+m+'分后';if(m>0)return m+'分'+s+'秒后';return s+'秒后';}
+function ft(d){const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());}
+function es(s){return(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function render(){
+  sb();
+  const L=document.getElementById('list');
+  if(!BL.length){L.innerHTML='<div class="empty"><div class="icon">📭</div>还没有 Boss，点击「＋ 添加 Boss」开始记录</div>';document.getElementById('si').textContent='';return;}
+  let rc=0,wc=0,ic=0;
+  BL.forEach(b=>{const s=gs(b);if(s.t==='ready')rc++;else if(s.t==='imminent')ic++;else if(s.t==='waiting')wc++;});
+  document.getElementById('si').textContent='🟢 '+rc+' 已刷新 | ⚡ '+ic+' 即将 | 🔵 '+wc+' 等待';
+
+  const ed=isEditor;
+  L.innerHTML=BL.map((b,i)=>{
+    const s=gs(b);
+    let cls='';
+    if(s.t==='ready')cls='ready';
+    else if(s.t==='imminent')cls='imminent';
+    const ct=s.t==='ready'?'ready':s.t==='imminent'?'imminent':'waiting';
+    const cdt=s.t==='ready'?'⚡ 已刷新！':s.t==='imminent'?'🔥 '+fc(s.d):s.t==='waiting'?fc(s.d):'—';
+    const rst=s.t==='ready'?'已刷新 — '+b.next_respawn:s.t!=='none'?'下次：'+b.next_respawn:'下次刷新：—';
+    const rsc=s.t==='ready'?'ready':s.t==='imminent'?'imminent':'';
+    const ro=ed?'':'readonly';
+    const h=ed?'':'<span class="readonly-badge">只读</span>';
+    const acts=ed?('<div class="acts"><button class="bk" onclick="mk('+i+')">⚔ 击杀</button><button class="bd" onclick="od('+i+')">📋 掉落</button><button class="'+(mt.has(i)?'bm-on':'bm-off')+' acts-btn" onclick="event.stopPropagation();muteBoss('+i+')">'+(mt.has(i)?'🔇 已关':'🔊 提示音')+'</button><button class="bx" onclick="db('+i+')">✕</button></div>'):('<div class="acts"><span style="font-size:11px;color:var(--sub);padding:5px 0">🔒 只读</span></div>');
+    const ekBtn=ed&&b.last_kill?'<button class="bet" onclick="event.stopPropagation();ek('+i+')">✎ 修正</button>':'';
+    return '<div class="card '+cls+'"><div class="card-top"><span class="cd '+ct+'">'+cdt+'</span><input class="ni" value="'+es(b.name)+'" placeholder="Boss 名称" onchange="uf('+i+',\'name\',this.value)" '+ro+'>'+h+'<span class="it">间隔 <input type="number" step="0.1" value="'+es(b.interval)+'" onchange="uf('+i+',\'interval\',this.value)" '+ro+'><span class="un">时</span></span><span class="it">刷新率 <input value="'+es(b.respawn_rate)+'" onchange="uf('+i+',\'respawn_rate\',this.value)" '+ro+'><span class="un">%</span></span>'+acts+'</div><div class="card-mid"><span class="rt '+rsc+'">'+rst+'</span>'+(b.last_kill?'<span class="rt">上次击杀：'+b.last_kill+ekBtn+'</span>':'')+'</div></div>';
+  }).join('');
+}
+
+function uf(i,k,v){if(!isEditor)return;BL[i][k]=v;as();}
+function addBoss(){if(!isEditor)return;BL.push({...D,drop_color:document.body.classList.contains('light')?'#000000':'#ffffff'});render();}
+function db(i){if(!isEditor)return;if(confirm('确定要删除「'+(BL[i].name||'#'+(i+1))+'」吗？')){BL.splice(i,1);render();as();}}
+function mk(i){if(!isEditor)return;const b=BL[i],n=new Date();b.last_kill=ft(n);const h=parseFloat(b.interval)||0;b.next_respawn=h>0?ft(new Date(n.getTime()+h*3600000)):'请设置间隔时间';
+  mt.delete(i);if(cp===i){stopAudio();cp=-1;}
+  ab.forEach(function(k){if(k.startsWith(i+'_'))ab.delete(k);});
+  render();as();}
+function ek(i){if(!isEditor)return;const b=BL[i],cur=(b.last_kill||ft(new Date())).slice(0,16),inp=prompt('修正击杀时间（YYYY-MM-DD HH:MM）',cur);if(inp&&inp.trim()){const t=inp.trim();if(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(t)){b.last_kill=t+':00';const h=parseFloat(b.interval)||0;if(h>0){try{const lt=new Date((t+':00').replace(' ','T'));if(!isNaN(lt.getTime()))b.next_respawn=ft(new Date(lt.getTime()+h*3600000));}catch(e){}}render();as();}else alert('格式错误');}}
+
+// 静音
+function muteBoss(i){
+  if(!isEditor)return;
+  if(mt.has(i)){mt.delete(i);}else{mt.add(i);if(cp===i){stopAudio();cp=-1;}}
+  render();as();
+}
+
+// 掉落
+let ssr=null;
+document.addEventListener('selectionchange',function(){const sel=window.getSelection();if(sel.rangeCount&&!sel.isCollapsed){const ed=document.getElementById('de');if(ed&&ed.contains(sel.anchorNode))ssr={range:sel.getRangeAt(0).cloneRange()};}});
+function od(i){if(!isEditor)return;ci=i;const ed=document.getElementById('de');ed.innerHTML=BL[i].drop_html||(BL[i].drop_info||'').replace(/\n/g,'<br>');bct(BL[i].drop_color||'#ffffff');document.getElementById('dm').classList.add('show');setTimeout(function(){ed.focus();},100);}
+function closeDrop(){document.getElementById('dm').classList.remove('show');ci=-1;ssr=null;}
+function bct(ac){const tb=document.getElementById('ct');tb.innerHTML='';CL.forEach(function(v){const hex=v[0],nm=v[1],dot=document.createElement('span');dot.className='color-dot'+(hex===ac?' active':'');dot.style.background=hex;dot.title=nm;dot.addEventListener('mousedown',function(e){e.preventDefault();ac2(hex);tb.querySelectorAll('.color-dot').forEach(function(d){d.classList.remove('active');});dot.classList.add('active');if(ci>=0)BL[ci].drop_color=hex;});tb.appendChild(dot);});}
+function ac2(c){const ed=document.getElementById('de');ed.focus();let range=null;if(ssr&&ssr.range&&ed.contains(ssr.range.commonAncestorContainer))range=ssr.range;if(!range){const sel=window.getSelection();if(sel.rangeCount&&!sel.isCollapsed&&ed.contains(sel.anchorNode))range=sel.getRangeAt(0);}if(!range)return;const tx=range.toString();if(!tx.trim())return;range.deleteContents();const sp=document.createElement('span');sp.style.color=c;sp.textContent=tx;range.insertNode(sp);const nr=document.createRange();nr.setStartAfter(sp);nr.collapse(true);const sel2=window.getSelection();sel2.removeAllRanges();sel2.addRange(nr);ssr=null;}
+function saveDrop(){if(ci<0)return;const ed=document.getElementById('de');BL[ci].drop_html=ed.innerHTML;BL[ci].drop_info=ed.innerText;closeDrop();as();}
+
+// 设置
+function openSettings(){document.getElementById('se').checked=ST.sound_enabled;document.getElementById('sf').value=ST.sound_file||'';document.getElementById('ss').textContent=ST.sound_enabled?'启用':'关闭';document.getElementById('smsg').textContent='';document.getElementById('newPw').value='';document.getElementById('pwmsg').textContent='';document.getElementById('sm2').classList.add('show');document.getElementById('se').onchange=function(){document.getElementById('ss').textContent=this.checked?'启用':'关闭';};}
+function closeSettings(){document.getElementById('sm2').classList.remove('show');}
+function pickSound(){const inp=document.createElement('input');inp.type='file';inp.accept='audio/*';inp.onchange=function(){if(this.files[0]){document.getElementById('sf').value=this.files[0].name;const r=new FileReader();r.onload=function(e){try{localStorage.setItem('boss_sound_data',e.target.result);}catch(ex){}};r.readAsDataURL(this.files[0]);}};inp.click();}
+function testSound(){pa(false);}
+function saveSettings(){ST.sound_enabled=document.getElementById('se').checked;ST.sound_file=document.getElementById('sf').value;localStorage.setItem('boss_settings',JSON.stringify(ST));stopAudio();const m=document.getElementById('smsg');m.textContent='✅ 已保存';m.style.color='var(--green)';setTimeout(closeSettings,600);}
+
+// 音频
+function pa(loop){if(!ST.sound_enabled)return;stopAudio();const s=localStorage.getItem('boss_sound_data');if(s){cAudio=new Audio(s);cAudio.loop=!!loop;cAudio.play().catch(function(){pb(loop);});}else pb(loop);}
+function stopAudio(){if(cAudio){if(cAudio._osc){try{cAudio._osc.stop();clearInterval(cAudio._iv);}catch(e){}}else{try{cAudio.pause();cAudio.currentTime=0;}catch(e){}}cAudio=null;}}
+function pb(loop){try{const c=new(window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.type='square';g.gain.value=0.15;if(loop){cAudio={_ctx:c,_osc:o,_gain:g,_loop:true};o.frequency.value=880;o.start();let ph=0;cAudio._iv=setInterval(function(){ph=1-ph;o.frequency.value=ph?1100:880;},200);}else{o.frequency.value=880;o.start();setTimeout(function(){o.frequency.value=1100;},150);o.stop(c.currentTime+0.35);}}catch(e){}}
+
+function cr(){
+  if(!ST.sound_enabled)return;
+  const n=new Date();
+  let best=null,bestIdx=-1,bestDiff=1/0;
+  BL.forEach(function(b,i){
+    if(!b.next_respawn||b.next_respawn==='请设置间隔时间')return;
+    if(mt.has(i))return;
+    try{const rt=new Date(b.next_respawn.replace(' ','T'));const diff=(rt-n)/1000;
+      if(diff<=120&&diff>=-120){const priority=diff<=0?diff-9999:diff;if(priority<bestDiff){bestDiff=priority;best=b;bestIdx=i;}}
+    }catch(e){}
+  });
+  if(bestIdx>=0&&bestIdx!==cp){stopAudio();cp=bestIdx;const k=bestIdx+'_'+best.next_respawn;ab.add(k);pa(true);}
+  if(cp>=0&&cp<BL.length){const b=BL[cp];try{const rt=new Date(b.next_respawn.replace(' ','T'));if((n-rt)/1000>120){stopAudio();cp=-1;}}catch(e){}}
+  render();
+}
+
+// 导入导出
+function exportData(){const d=JSON.stringify(BL,null,2);const b=new Blob([d],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='boss_data_'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(a.href);}
+function importData(){const inp=document.createElement('input');inp.type='file';inp.accept='.json';inp.onchange=function(){if(!this.files[0])return;const r=new FileReader();r.onload=function(e){try{const d=JSON.parse(e.target.result);if(!Array.isArray(d))throw new Error();BL=d;render();as();alert('✅ 导入成功，共 '+BL.length+' 个 Boss');}catch(ex){alert('❌ 文件格式错误');}};r.readAsText(this.files[0]);};inp.click();}
+function saveAll(){as();alert('✅ 已保存');}
+
+// 主题
+function toggleTheme(){document.body.classList.toggle('light');const L=document.body.classList.contains('light');document.getElementById('tb').textContent=L?'☀️':'🌙';localStorage.setItem('boss_theme',L?'light':'dark');}
+
+function as(){localStorage.setItem('boss_data',JSON.stringify(BL));}
+
+// 初始化
+if(localStorage.getItem('boss_theme')==='light'){document.body.classList.add('light');document.getElementById('tb').textContent='☀️';}
+if(sessionStorage.getItem('boss_editor')==='1'){isEditor=true;}
+updateUI();
+setInterval(cr,5000);
+</script>
+</body>
+</html>
