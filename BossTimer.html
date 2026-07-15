@@ -201,7 +201,7 @@ async function changePw(){
   document.getElementById('pwmsg').textContent='✅ 编辑密码已修改';
   document.getElementById('pwmsg').style.color='var(--green)';
   // 同步到云端
-  if(API_URL!=='https://boss-timer-api.siyue139374666.workers.dev'){
+  if(API_URL&&!API_URL.startsWith('__')){
     try{
       const ap2=document.getElementById('adminPw').value||ap;
       await fetch(API_URL+'/api/admin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({admin_password:ap2,new_password:np})});
@@ -354,8 +354,8 @@ async function syncToServer(){
   try{
     const pw=sessionStorage.getItem('boss_pw')||'';
     const r=await fetch(API_URL+'/api/data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw,data:BL})});
-    if(!r.ok){const j=await r.json();console.log('Save failed:',j.error);}
-  }catch(e){console.log('Sync error:',e);}
+    if(!r.ok){const j=await r.json();console.log('Save failed:',j.error);throw new Error(j.error);}
+  }catch(e){console.log('Sync error:',e);localStorage.setItem('boss_data',JSON.stringify(BL));}
 }
 async function loadFromServer(){
   if(!API_URL||API_URL.startsWith('__')){
@@ -366,8 +366,11 @@ async function loadFromServer(){
   }
   try{
     const r=await fetch(API_URL+'/api/data');
-    if(r.ok){const d=await r.json();if(JSON.stringify(d)!==JSON.stringify(BL)){BL=d;dataVersion++;}}
+    if(r.ok){const d=await r.json();if(JSON.stringify(d)!==JSON.stringify(BL)){BL=d;dataVersion++;return;}}
   }catch(e){console.log('Load error:',e);}
+  // 回退到 localStorage
+  BL=JSON.parse(localStorage.getItem('boss_data')||'[]');
+  ST=JSON.parse(localStorage.getItem('boss_settings')||'{"sound_enabled":true,"sound_file":""}');
 }
 
 // 初始化
