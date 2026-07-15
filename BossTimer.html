@@ -279,9 +279,15 @@ function stopAudio(){if(cAudio){if(cAudio._osc){try{cAudio._osc.stop();clearInte
 function pb(loop){try{var c=new(window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.type='square';g.gain.value=0.15;if(loop){cAudio={_ctx:c,_osc:o,_gain:g,_loop:true};o.frequency.value=880;o.start();var ph=0;cAudio._iv=setInterval(function(){ph=1-ph;o.frequency.value=ph?1100:880;},200);}else{o.frequency.value=880;o.start();setTimeout(function(){o.frequency.value=1100;},150);o.stop(c.currentTime+0.35);}}catch(e){}}
 
 // ═══════════ 数据持久化 ═══════════
-function localSave(){localStorage.setItem('boss_data',JSON.stringify(BL));syncToServer();}
+var _dirty=false,_pendingSync=null;
+function localSave(){localStorage.setItem('boss_data',JSON.stringify(BL));_dirty=true;
+  // 延迟5秒合并写入，连续操作只触发一次同步
+  if(_pendingSync)clearTimeout(_pendingSync);
+  _pendingSync=setTimeout(function(){_pendingSync=null;if(_dirty)syncToServer();},5000);}
+function localSaveForce(){if(_pendingSync)clearTimeout(_pendingSync);_pendingSync=null;localStorage.setItem('boss_data',JSON.stringify(BL));syncToServer();}
+
 async function syncToServer(){
-  if(!USE_API)return;
+  if(!USE_API)return;_dirty=false;
   try{
     var pw=sessionStorage.getItem('boss_pw')||'';
     await fetch('/api/data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw,data:BL})});
@@ -315,6 +321,7 @@ async function crLoop(){
   }
   _lastFetch=now;
   await loadFromServer();
+  if(_dirty)syncToServer();
   if(ST.sound_enabled){
     var n=new Date(),best=null,bestIdx=-1,bestDiff=1/0;
     BL.forEach(function(b,i){
@@ -332,7 +339,7 @@ async function crLoop(){
 // 导入导出
 function exportData(){var d=JSON.stringify(BL,null,2);var b=new Blob([d],{type:'application/json'});var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='boss_data_'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(a.href);}
 function importData(){var inp=document.createElement('input');inp.type='file';inp.accept='.json';inp.onchange=function(){if(!this.files[0])return;var r=new FileReader();r.onload=function(e){try{var d=JSON.parse(e.target.result);if(!Array.isArray(d))throw new Error();BL=d;render();localSave();alert('✅ 导入成功，共 '+BL.length+' 个 Boss');}catch(ex){alert('❌ 文件格式错误');}};r.readAsText(this.files[0]);};inp.click();}
-function saveAll(){localSave();alert('✅ 已保存');}
+function saveAll(){localSaveForce();alert('✅ 已保存');}
 
 // 主题
 function toggleTheme(){document.body.classList.toggle('light');var L=document.body.classList.contains('light');document.getElementById('tb').textContent=L?'☀️':'🌙';localStorage.setItem('boss_theme',L?'light':'dark');}
