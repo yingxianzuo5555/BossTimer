@@ -287,7 +287,7 @@ function localSave(){localStorage.setItem('boss_data',JSON.stringify(BL));_dirty
 function localSaveForce(){if(_pendingSync)clearTimeout(_pendingSync);_pendingSync=null;localStorage.setItem('boss_data',JSON.stringify(BL));syncToServer();}
 
 async function syncToServer(){
-  if(!USE_API)return;_dirty=false;
+  if(!USE_API)return;_dirty=false;if(_pendingSync){clearTimeout(_pendingSync);_pendingSync=null;}
   try{
     var pw=sessionStorage.getItem('boss_pw')||'';
     await fetch('/api/data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw,data:BL})});
@@ -298,7 +298,7 @@ async function loadFromServer(){
   // 先加载本地
   BL=JSON.parse(localStorage.getItem('boss_data')||'[]');
   ST=JSON.parse(localStorage.getItem('boss_settings')||'{"sound_enabled":true,"sound_file":""}');
-  // 再尝试云端
+  // 再尝试云端（本地有未同步修改时跳过覆盖，等推送后再拉）
   if(!USE_API)return;
   try{
     var opts={};if(_lastETag)opts.headers={'If-None-Match':_lastETag};
@@ -306,7 +306,9 @@ async function loadFromServer(){
     if(r.status===304)return;
     if(r.ok){
       var et=r.headers.get('ETag');if(et)_lastETag=et;
-      var d=await r.json();BL=d;localStorage.setItem('boss_data',JSON.stringify(BL));
+      if(!_dirty){
+        var d=await r.json();BL=d;localStorage.setItem('boss_data',JSON.stringify(BL));
+      }
     }
   }catch(e){console.log('Load:',e);}
 }
@@ -320,8 +322,12 @@ async function crLoop(){
     render();return;
   }
   _lastFetch=now;
+  // 先推送本地修改，再拉取服务器数据（防止覆盖未同步的击杀/编辑）
+  if(_dirty||_pendingSync){
+    if(_pendingSync){clearTimeout(_pendingSync);_pendingSync=null;}
+    await syncToServer();
+  }
   await loadFromServer();
-  if(_dirty)syncToServer();
   if(ST.sound_enabled){
     var n=new Date(),best=null,bestIdx=-1,bestDiff=1/0;
     BL.forEach(function(b,i){
