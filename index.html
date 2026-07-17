@@ -279,19 +279,20 @@ function stopAudio(){if(cAudio){if(cAudio._osc){try{cAudio._osc.stop();clearInte
 function pb(loop){try{var c=new(window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.type='square';g.gain.value=0.15;if(loop){cAudio={_ctx:c,_osc:o,_gain:g,_loop:true};o.frequency.value=880;o.start();var ph=0;cAudio._iv=setInterval(function(){ph=1-ph;o.frequency.value=ph?1100:880;},200);}else{o.frequency.value=880;o.start();setTimeout(function(){o.frequency.value=1100;},150);o.stop(c.currentTime+0.35);}}catch(e){}}
 
 // ═══════════ 数据持久化 ═══════════
-var _dirty=false,_pendingSync=null;
-function localSave(){localStorage.setItem('boss_data',JSON.stringify(BL));_dirty=true;
+var _dirty=localStorage.getItem("boss_needs_sync")==="1",_pendingSync=null;
+function localSave(){localStorage.setItem('boss_data',JSON.stringify(BL));_dirty=true;localStorage.setItem('boss_needs_sync','1');
   // 延迟5秒合并写入，连续操作只触发一次同步
   if(_pendingSync)clearTimeout(_pendingSync);
   _pendingSync=setTimeout(function(){_pendingSync=null;if(_dirty)syncToServer();},5000);}
-function localSaveForce(){if(_pendingSync)clearTimeout(_pendingSync);_pendingSync=null;localStorage.setItem('boss_data',JSON.stringify(BL));syncToServer();}
+function localSaveForce(){if(_pendingSync)clearTimeout(_pendingSync);_pendingSync=null;localStorage.setItem('boss_data',JSON.stringify(BL));localStorage.setItem('boss_needs_sync','1');syncToServer();}
 
 async function syncToServer(){
-  if(!USE_API)return;_dirty=false;if(_pendingSync){clearTimeout(_pendingSync);_pendingSync=null;}
+  if(!USE_API)return;_dirty=false;localStorage.removeItem('boss_needs_sync');if(_pendingSync){clearTimeout(_pendingSync);_pendingSync=null;}
   try{
     var pw=sessionStorage.getItem('boss_pw')||'';
-    await fetch('/api/data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw,data:BL})});
-  }catch(e){console.log('Sync:',e);}
+    var r=await fetch('/api/data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw,data:BL})});
+    if(!r.ok){_dirty=true;localStorage.setItem('boss_needs_sync','1');}
+  }catch(e){console.log('Sync:',e);_dirty=true;localStorage.setItem('boss_needs_sync','1');}
 }
 var _lastETag='';
 async function loadFromServer(){
