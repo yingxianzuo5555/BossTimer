@@ -287,15 +287,17 @@ function localSave(){localStorage.setItem('boss_data',JSON.stringify(BL));_dirty
 function localSaveForce(){if(_pendingSync)clearTimeout(_pendingSync);_pendingSync=null;localStorage.setItem('boss_data',JSON.stringify(BL));localStorage.setItem('boss_needs_sync','1');syncToServer();}
 
 async function syncToServer(){
-  if(!USE_API)return;_dirty=false;localStorage.removeItem('boss_needs_sync');if(_pendingSync){clearTimeout(_pendingSync);_pendingSync=null;}
+  if(!USE_API)return;_dirty=false;localStorage.removeItem('boss_needs_sync');if(_pendingSync){clearTimeout(_pendingSync);_pendingSync=null;}_lastPush=Date.now();
   try{
     var pw=sessionStorage.getItem('boss_pw')||'';
     var r=await fetch('/api/data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw,data:BL})});
     if(!r.ok){_dirty=true;localStorage.setItem('boss_needs_sync','1');}
   }catch(e){console.log('Sync:',e);_dirty=true;localStorage.setItem('boss_needs_sync','1');}
 }
-var _lastETag='';
+var _lastETag='',_lastPush=0;
 async function loadFromServer(){
+  // KV最终一致性保护：推送后3秒内不拉取
+  if(Date.now()-_lastPush<3000)return;
   // 先加载本地
   BL=JSON.parse(localStorage.getItem('boss_data')||'[]');
   ST=JSON.parse(localStorage.getItem('boss_settings')||'{"sound_enabled":true,"sound_file":""}');
@@ -323,12 +325,14 @@ async function crLoop(){
     render();return;
   }
   _lastFetch=now;
-  // 先推送本地修改，再拉取服务器数据（防止覆盖未同步的击杀/编辑）
+  // 有本地修改：推送后跳过拉取（KV最终一致性会导致立即读取拿到旧数据）
   if(_dirty||_pendingSync){
     if(_pendingSync){clearTimeout(_pendingSync);_pendingSync=null;}
     await syncToServer();
+    // 跳过本次load，本地数据就是最新的。下次循环再拉取其他人的更新
+  } else {
+    await loadFromServer();
   }
-  await loadFromServer();
   if(ST.sound_enabled){
     var n=new Date(),best=null,bestIdx=-1,bestDiff=1/0;
     BL.forEach(function(b,i){
