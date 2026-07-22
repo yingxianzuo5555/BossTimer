@@ -277,7 +277,54 @@ function saveSettings(){ST.sound_enabled=document.getElementById('se').checked;S
 // 音频
 function pa(loop){if(!ST.sound_enabled)return;stopAudio();var s=localStorage.getItem('boss_sound_data');if(s){cAudio=new Audio(s);cAudio.loop=!!loop;cAudio.play().catch(function(){pb(loop);});}else pb(loop);}
 function stopAudio(){if(cAudio){if(cAudio._iv){clearTimeout(cAudio._iv);cAudio._iv=null;}try{cAudio._ctx.close();}catch(e){}cAudio=null;}}
-function pb(loop){try{var c=new(window.AudioContext||window.webkitAudioContext)();var notes=[262,294,330,349,392,349,330,294,262,330,392,440,392,330,349,294,262,294,349,392,440,392,349,330,294,262,294,330,349,294,330,392,440,494,440,392,349,330,349,294];var dur=0.22;function playOnce(){var t=c.currentTime;notes.forEach(function(f,i){var o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.type='triangle';o.frequency.value=f;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.12,t+0.02);g.gain.linearRampToValueAtTime(0,t+dur-0.03);o.start(t);o.stop(t+dur);t+=dur;});return notes.length*dur;}var total=playOnce();if(loop){cAudio={_ctx:c,_loop:true};cAudio._iv=setTimeout(function rpt(){if(!cAudio)return;playOnce();cAudio._iv=setTimeout(rpt,total*1000-50);},total*1000-50);}else{cAudio={_ctx:c};}}catch(e){}}
+function pb(loop){try{
+var ctx=new(window.AudioContext||window.webkitAudioContext)();
+// 卡农 D大调 主旋律 — 帕赫贝尔《卡农》
+var m=[293.66,369.99,440,392,369.99,329.63,293.66,329.63,369.99,293.66,392,369.99,392,440,493.88,440,392,369.99,329.63,293.66,329.63,369.99,392,440,493.88,392,440,369.99,392,293.66,392,440];
+var d=0.28; // 每个音符时长
+function playOnce(){
+  var s=ctx.currentTime;
+  m.forEach(function(f,i){
+    var t=s+i*d;
+    // 基频：正弦波（八音盒纯净音色）
+    var o1=ctx.createOscillator(),g1=ctx.createGain();
+    o1.type='sine';o1.frequency.value=f;
+    o1.connect(g1);g1.connect(ctx.destination);
+    g1.gain.setValueAtTime(0,t);
+    g1.gain.linearRampToValueAtTime(0.10,t+0.005);   // 快速起音
+    g1.gain.exponentialRampToValueAtTime(0.06,t+0.06); // 自然衰减
+    g1.gain.linearRampToValueAtTime(0,t+d-0.01);
+    o1.start(t);o1.stop(t+d);
+    // 泛音：高八度（八音盒的清脆感）
+    var o2=ctx.createOscillator(),g2=ctx.createGain();
+    o2.type='sine';o2.frequency.value=f*2;
+    o2.connect(g2);g2.connect(ctx.destination);
+    g2.gain.setValueAtTime(0,t);
+    g2.gain.linearRampToValueAtTime(0.025,t+0.004);
+    g2.gain.exponentialRampToValueAtTime(0.01,t+0.04);
+    g2.gain.linearRampToValueAtTime(0,t+d-0.01);
+    o2.start(t);o2.stop(t+d);
+    // 敲击感：极短高频脉冲（模拟八音盒拨片）
+    var o3=ctx.createOscillator(),g3=ctx.createGain();
+    o3.type='sine';o3.frequency.value=f*4;
+    o3.connect(g3);g3.connect(ctx.destination);
+    g3.gain.setValueAtTime(0.04,t);
+    g3.gain.exponentialRampToValueAtTime(0.001,t+0.012);
+    o3.start(t);o3.stop(t+0.015);
+  });
+  return m.length*d;
+}
+var total=playOnce();
+if(loop){
+  cAudio={_ctx:ctx,_loop:true};
+  cAudio._iv=setTimeout(function rpt(){
+    if(!cAudio)return;
+    playOnce();
+    cAudio._iv=setTimeout(rpt,total*1000-80);
+  },total*1000-80);
+}else{cAudio={_ctx:ctx};}
+}catch(e){}}
+
 
 
 // ═══════════ 数据持久化 ═══════════
