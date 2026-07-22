@@ -138,6 +138,7 @@ hr{border:none;border-top:1px solid var(--border);margin:10px 24px}
   <div class="modal">
     <h3>⚙ 全局设置</h3>
     <div class="sg"><label>刷新提示音</label><div class="tr"><label class="toggle"><input type="checkbox" id="se" checked><span class="slider"></span></label><span style="font-size:12px;color:var(--sub)" id="ss">启用</span></div></div>
+    <div class="sg"><label>循环播放</label><div class="tr"><label class="toggle"><input type="checkbox" id="sl"><span class="slider"></span></label><span style="font-size:12px;color:var(--sub)" id="slt">单次</span></div></div>
     <div class="sg"><label>自定义音频（选填）</label><div class="fr"><input type="text" id="sf" placeholder="留空使用默认蜂鸣" readonly><button onclick="pickSound()">浏览</button><button onclick="testSound()" style="background:var(--acc);color:#fff;border:none">▶ 试听</button></div><div class="sm" id="smsg"></div></div>
     <div class="sg"><label>修改编辑密码（需管理员权限）</label><div class="fr" style="flex-direction:column;gap:4px;align-items:stretch"><input type="password" id="newPw" placeholder="新编辑密码"><div class="fr"><input type="password" id="adminPw" placeholder="管理员密码"><button onclick="changePw()" style="background:var(--purple);color:#fff;border:none;white-space:nowrap">修改</button></div></div><div class="sm" id="pwmsg"></div></div>
     <div class="btn-row">
@@ -208,7 +209,7 @@ function updateUI(){
 
 // ═══════════ 数据 ═══════════
 var D={name:'',location:'',interval:'',respawn_rate:'',next_respawn:'',last_kill:'',drop_html:'',drop_color:'#ffffff'};
-var BL=[],ST={sound_enabled:true,sound_file:''};
+var BL=[],ST={sound_enabled:true,sound_file:'',sound_loop:false};
 var ci=-1,ab=new Set(),cAudio=null,mt=new Set(),cp=-1,lastRendered='';
 var CL=[['#ffffff','白'],['#ff6b6b','红'],['#4ecdc4','青'],['#45b7d1','蓝'],['#96ceb4','绿'],['#ffeaa7','黄'],['#dda0dd','紫'],['#ff9ff3','粉'],['#feca57','金'],['#ff6b35','橙'],['#00d2d3','冰蓝'],['#5f27cd','靛']];
 
@@ -267,16 +268,17 @@ function ac2(c){var ed=document.getElementById('de');ed.focus();var range=null;i
 function saveDrop(){if(ci<0)return;var ed=document.getElementById('de');BL[ci].drop_html=ed.innerHTML;BL[ci].drop_info=ed.innerText;closeDrop();localSave();}
 
 // 设置
-function openSettings(){document.getElementById('se').checked=ST.sound_enabled;document.getElementById('sf').value=ST.sound_file||'';document.getElementById('ss').textContent=ST.sound_enabled?'启用':'关闭';document.getElementById('smsg').textContent='';document.getElementById('newPw').value='';document.getElementById('pwmsg').textContent='';try{document.getElementById('adminPw').value='';}catch(e){}document.getElementById('sm2').classList.add('show');document.getElementById('se').onchange=function(){document.getElementById('ss').textContent=this.checked?'启用':'关闭';};}
+function openSettings(){document.getElementById('se').checked=ST.sound_enabled;document.getElementById('sf').value=ST.sound_file||'';document.getElementById('ss').textContent=ST.sound_enabled?'启用':'关闭';document.getElementById('sl').checked=!!ST.sound_loop;document.getElementById('slt').textContent=ST.sound_loop?'循环':'单次';document.getElementById('smsg').textContent='';document.getElementById('newPw').value='';document.getElementById('pwmsg').textContent='';try{document.getElementById('adminPw').value='';}catch(e){}document.getElementById('sm2').classList.add('show');document.getElementById('se').onchange=function(){document.getElementById('ss').textContent=this.checked?'启用':'关闭';};document.getElementById('sl').onchange=function(){document.getElementById('slt').textContent=this.checked?'循环':'单次';};}
 function closeSettings(){document.getElementById('sm2').classList.remove('show');}
 function pickSound(){var inp=document.createElement('input');inp.type='file';inp.accept='audio/*';inp.onchange=function(){if(this.files[0]){document.getElementById('sf').value=this.files[0].name;var r=new FileReader();r.onload=function(e){try{localStorage.setItem('boss_sound_data',e.target.result);}catch(ex){}};r.readAsDataURL(this.files[0]);}};inp.click();}
 function testSound(){pa(false);}
-function saveSettings(){ST.sound_enabled=document.getElementById('se').checked;ST.sound_file=document.getElementById('sf').value;localStorage.setItem('boss_settings',JSON.stringify(ST));stopAudio();document.getElementById('smsg').textContent='✅ 已保存';document.getElementById('smsg').style.color='var(--green)';setTimeout(closeSettings,600);}
+function saveSettings(){ST.sound_enabled=document.getElementById('se').checked;ST.sound_loop=document.getElementById('sl').checked;ST.sound_file=document.getElementById('sf').value;localStorage.setItem('boss_settings',JSON.stringify(ST));stopAudio();document.getElementById('smsg').textContent='✅ 已保存';document.getElementById('smsg').style.color='var(--green)';setTimeout(closeSettings,600);}
 
 // 音频
 function pa(loop){if(!ST.sound_enabled)return;stopAudio();var s=localStorage.getItem('boss_sound_data');if(s){cAudio=new Audio(s);cAudio.loop=!!loop;cAudio.play().catch(function(){pb(loop);});}else pb(loop);}
-function stopAudio(){if(cAudio){if(cAudio._osc){try{cAudio._osc.stop();clearInterval(cAudio._iv);}catch(e){}}else{try{cAudio.pause();cAudio.currentTime=0;}catch(e){}}cAudio=null;}}
-function pb(loop){try{var c=new(window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.type='square';g.gain.value=0.15;if(loop){cAudio={_ctx:c,_osc:o,_gain:g,_loop:true};o.frequency.value=880;o.start();var ph=0;cAudio._iv=setInterval(function(){ph=1-ph;o.frequency.value=ph?1100:880;},200);}else{o.frequency.value=880;o.start();setTimeout(function(){o.frequency.value=1100;},150);o.stop(c.currentTime+0.35);}}catch(e){}}
+function stopAudio(){if(cAudio){if(cAudio._iv){clearTimeout(cAudio._iv);cAudio._iv=null;}try{cAudio._ctx.close();}catch(e){}cAudio=null;}}
+function pb(loop){try{var c=new(window.AudioContext||window.webkitAudioContext)();var notes=[262,294,330,349,392,349,330,294,262,330,392,440,392,330,349,294,262,294,349,392,440,392,349,330,294,262,294,330,349,294,330,392,440,494,440,392,349,330,349,294];var dur=0.22;function playOnce(){var t=c.currentTime;notes.forEach(function(f,i){var o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.type='triangle';o.frequency.value=f;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.12,t+0.02);g.gain.linearRampToValueAtTime(0,t+dur-0.03);o.start(t);o.stop(t+dur);t+=dur;});return notes.length*dur;}var total=playOnce();if(loop){cAudio={_ctx:c,_loop:true};cAudio._iv=setTimeout(function rpt(){if(!cAudio)return;playOnce();cAudio._iv=setTimeout(rpt,total*1000-50);},total*1000-50);}else{cAudio={_ctx:c};}}catch(e){}}
+
 
 // ═══════════ 数据持久化 ═══════════
 var _dirty=localStorage.getItem("boss_needs_sync")==="1",_pendingSync=null;
@@ -338,11 +340,11 @@ async function crLoop(){
     BL.forEach(function(b,i){
       if(!b.next_respawn||b.next_respawn==='请设置间隔时间')return;if(mt.has(i))return;
       try{var rt=new Date(b.next_respawn.replace(' ','T'));var diff=(rt-n)/1000;
-        if(diff<=120&&diff>=-120){var priority=diff<=0?diff-9999:diff;if(priority<bestDiff){bestDiff=priority;best=b;bestIdx=i;}}
+        if(diff<=60&&diff>=-60){var priority=diff<=0?diff-9999:diff;if(priority<bestDiff){bestDiff=priority;best=b;bestIdx=i;}}
       }catch(e){}
     });
-    if(bestIdx>=0&&bestIdx!==cp){stopAudio();cp=bestIdx;ab.add(bestIdx+'_'+best.next_respawn);pa(true);}
-    if(cp>=0&&cp<BL.length){try{var rb=BL[cp],rt2=new Date(rb.next_respawn.replace(' ','T'));if((n-rt2)/1000>120){stopAudio();cp=-1;}}catch(e){}}
+    if(bestIdx>=0&&bestIdx!==cp){stopAudio();cp=bestIdx;ab.add(bestIdx+'_'+best.next_respawn);pa(ST.sound_loop);}
+    if(cp>=0&&cp<BL.length){try{var rb=BL[cp],rt2=new Date(rb.next_respawn.replace(' ','T'));if((n-rt2)/1000>60){stopAudio();cp=-1;}}catch(e){}}
   }
   render();
 }
