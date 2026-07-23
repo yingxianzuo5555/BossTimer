@@ -139,7 +139,6 @@ hr{border:none;border-top:1px solid var(--border);margin:10px 24px}
     <h3>⚙ 全局设置</h3>
     <div class="sg"><label>刷新提示音</label><div class="tr"><label class="toggle"><input type="checkbox" id="se" checked><span class="slider"></span></label><span style="font-size:12px;color:var(--sub)" id="ss">启用</span></div></div>
     <div class="sg"><label>循环播放</label><div class="tr"><label class="toggle"><input type="checkbox" id="sl"><span class="slider"></span></label><span style="font-size:12px;color:var(--sub)" id="slt">单次</span></div></div>
-    <div class="sg"><label>语音播报 Boss 名</label><div class="tr"><label class="toggle"><input type="checkbox" id="sv" checked><span class="slider"></span></label><span style="font-size:12px;color:var(--sub)" id="svt">启用</span></div></div>
     <div class="sg"><label>自定义音频（选填）</label><div class="fr"><input type="text" id="sf" placeholder="留空使用默认蜂鸣" readonly><button onclick="pickSound()">浏览</button><button onclick="testSound()" style="background:var(--acc);color:#fff;border:none">▶ 试听</button></div><div class="sm" id="smsg"></div></div>
     <div class="sg"><label>修改编辑密码（需管理员权限）</label><div class="fr" style="flex-direction:column;gap:4px;align-items:stretch"><input type="password" id="newPw" placeholder="新编辑密码"><div class="fr"><input type="password" id="adminPw" placeholder="管理员密码"><button onclick="changePw()" style="background:var(--purple);color:#fff;border:none;white-space:nowrap">修改</button></div></div><div class="sm" id="pwmsg"></div></div>
     <div class="btn-row">
@@ -210,7 +209,7 @@ function updateUI(){
 
 // ═══════════ 数据 ═══════════
 var D={name:'',location:'',interval:'',respawn_rate:'',next_respawn:'',last_kill:'',drop_html:'',drop_color:'#ffffff'};
-var BL=[],ST={sound_enabled:true,sound_file:'',sound_loop:false,sound_voice:true};
+var BL=[],ST={sound_enabled:true,sound_file:'',sound_loop:false};
 var ci=-1,ab=new Set(),cAudio=null,mt=new Set(),cp=-1,lastRendered='';
 var CL=[['#ffffff','白'],['#ff6b6b','红'],['#4ecdc4','青'],['#45b7d1','蓝'],['#96ceb4','绿'],['#ffeaa7','黄'],['#dda0dd','紫'],['#ff9ff3','粉'],['#feca57','金'],['#ff6b35','橙'],['#00d2d3','冰蓝'],['#5f27cd','靛']];
 
@@ -269,30 +268,18 @@ function ac2(c){var ed=document.getElementById('de');ed.focus();var range=null;i
 function saveDrop(){if(ci<0)return;var ed=document.getElementById('de');BL[ci].drop_html=ed.innerHTML;BL[ci].drop_info=ed.innerText;closeDrop();localSave();}
 
 // 设置
-function openSettings(){document.getElementById('se').checked=ST.sound_enabled;document.getElementById('sf').value=ST.sound_file||'';document.getElementById('ss').textContent=ST.sound_enabled?'启用':'关闭';document.getElementById('sl').checked=!!ST.sound_loop;document.getElementById('slt').textContent=ST.sound_loop?'循环':'单次';document.getElementById('sv').checked=!!ST.sound_voice;document.getElementById('svt').textContent=ST.sound_voice?'启用':'关闭';document.getElementById('smsg').textContent='';document.getElementById('newPw').value='';document.getElementById('pwmsg').textContent='';try{document.getElementById('adminPw').value='';}catch(e){}document.getElementById('sm2').classList.add('show');document.getElementById('se').onchange=function(){document.getElementById('ss').textContent=this.checked?'启用':'关闭';};document.getElementById('sl').onchange=function(){document.getElementById('slt').textContent=this.checked?'循环':'单次';};document.getElementById('sv').onchange=function(){document.getElementById('svt').textContent=this.checked?'启用':'关闭';};}
+function openSettings(){document.getElementById('se').checked=ST.sound_enabled;document.getElementById('sf').value=ST.sound_file||'';document.getElementById('ss').textContent=ST.sound_enabled?'启用':'关闭';document.getElementById('sl').checked=!!ST.sound_loop;document.getElementById('slt').textContent=ST.sound_loop?'循环':'单次';document.getElementById('smsg').textContent='';document.getElementById('newPw').value='';document.getElementById('pwmsg').textContent='';try{document.getElementById('adminPw').value='';}catch(e){}document.getElementById('sm2').classList.add('show');document.getElementById('se').onchange=function(){document.getElementById('ss').textContent=this.checked?'启用':'关闭';};document.getElementById('sl').onchange=function(){document.getElementById('slt').textContent=this.checked?'循环':'单次';};}
 function closeSettings(){document.getElementById('sm2').classList.remove('show');}
 function pickSound(){var inp=document.createElement('input');inp.type='file';inp.accept='audio/*';inp.onchange=function(){if(this.files[0]){document.getElementById('sf').value=this.files[0].name;var r=new FileReader();r.onload=function(e){try{localStorage.setItem('boss_sound_data',e.target.result);}catch(ex){}};r.readAsDataURL(this.files[0]);}};inp.click();}
 function testSound(){pa(false);}
-function saveSettings(){ST.sound_enabled=document.getElementById('se').checked;ST.sound_loop=document.getElementById('sl').checked;ST.sound_voice=document.getElementById('sv').checked;ST.sound_file=document.getElementById('sf').value;localStorage.setItem('boss_settings',JSON.stringify(ST));stopAudio();document.getElementById('smsg').textContent='✅ 已保存';document.getElementById('smsg').style.color='var(--green)';setTimeout(closeSettings,600);}
+function saveSettings(){ST.sound_enabled=document.getElementById('se').checked;ST.sound_loop=document.getElementById('sl').checked;ST.sound_file=document.getElementById('sf').value;localStorage.setItem('boss_settings',JSON.stringify(ST));stopAudio();document.getElementById('smsg').textContent='✅ 已保存';document.getElementById('smsg').style.color='var(--green)';setTimeout(closeSettings,600);}
 
 // 音频
-var _speechUtter=null;
-function speakBoss(name){
-  if(!ST.sound_voice||!name)return;
-  try{
-    if(_speechUtter){speechSynthesis.cancel();_speechUtter=null;}
-    var u=new SpeechSynthesisUtterance(name+' 即将刷新');
-    u.lang='zh-CN';u.rate=0.9;u.pitch=1.1;u.volume=0.8;
-    // 等待语音播完再播音乐
-    u.onend=function(){_speechUtter=null;};
-    _speechUtter=u;
-    speechSynthesis.speak(u);
-  }catch(e){}
-}
 function pa(loop){if(!ST.sound_enabled)return;stopAudio();var s=localStorage.getItem('boss_sound_data');if(s){cAudio=new Audio(s);cAudio.loop=!!loop;cAudio.play().catch(function(){pb(loop);});}else pb(loop);}
-function stopAudio(){if(cAudio){if(cAudio._iv){clearTimeout(cAudio._iv);cAudio._iv=null;}try{cAudio._ctx.close();}catch(e){}cAudio=null;}if(_speechUtter){try{speechSynthesis.cancel();}catch(e){}_speechUtter=null;}}
+function stopAudio(){if(cAudio){if(cAudio._iv){clearTimeout(cAudio._iv);cAudio._iv=null;}try{cAudio._ctx.close();}catch(e){}cAudio=null;}}
 function pb(loop){try{
 var ctx=new(window.AudioContext||window.webkitAudioContext)();
+if(ctx.state==='suspended'){ctx.resume();ctx.onstatechange=function(){if(ctx.state==='running')ctx.onstatechange=null;};}
 // 卡农 D大调 主旋律 — 帕赫贝尔《卡农》
 var m=[293.66,369.99,440,392,369.99,329.63,293.66,329.63,369.99,293.66,392,369.99,392,440,493.88,440,392,369.99,329.63,293.66,329.63,369.99,392,440,493.88,392,440,369.99,392,293.66,392,440];
 var d=0.28; // 每个音符时长
@@ -363,7 +350,7 @@ async function loadFromServer(){
   if(Date.now()-_lastPush<3000)return;
   // 先加载本地
   BL=JSON.parse(localStorage.getItem('boss_data')||'[]');
-  ST=JSON.parse(localStorage.getItem('boss_settings')||'{"sound_enabled":true,"sound_file":"","sound_loop":false,"sound_voice":true}');
+  ST=JSON.parse(localStorage.getItem('boss_settings')||'{"sound_enabled":true,"sound_file":"","sound_loop":false}');
   // 再尝试云端（本地有未同步修改时跳过覆盖，等推送后再拉）
   if(!USE_API)return;
   try{
@@ -404,7 +391,7 @@ async function crLoop(){
         if(diff<=60&&diff>=-60){var priority=diff<=0?diff-9999:diff;if(priority<bestDiff){bestDiff=priority;best=b;bestIdx=i;}}
       }catch(e){}
     });
-    if(bestIdx>=0&&bestIdx!==cp){stopAudio();cp=bestIdx;ab.add(bestIdx+'_'+best.next_respawn);speakBoss(best.name);pa(ST.sound_loop);}
+    if(bestIdx>=0&&bestIdx!==cp){stopAudio();cp=bestIdx;ab.add(bestIdx+'_'+best.next_respawn);pa(ST.sound_loop);}
     if(cp>=0&&cp<BL.length){try{var rb=BL[cp],rt2=new Date(rb.next_respawn.replace(' ','T'));if((n-rt2)/1000>60){stopAudio();cp=-1;}}catch(e){}}
   }
   render();
