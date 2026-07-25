@@ -272,11 +272,11 @@ function openSettings(){document.getElementById('se').checked=ST.sound_enabled;d
 function closeSettings(){document.getElementById('sm2').classList.remove('show');}
 function pickSound(){var inp=document.createElement('input');inp.type='file';inp.accept='audio/*';inp.onchange=function(){if(this.files[0]){document.getElementById('sf').value=this.files[0].name;var r=new FileReader();r.onload=function(e){try{localStorage.setItem('boss_sound_data',e.target.result);}catch(ex){}};r.readAsDataURL(this.files[0]);}};inp.click();}
 function testSound(){pa(false);}
-function saveSettings(){ST.sound_enabled=document.getElementById('se').checked;ST.sound_loop=document.getElementById('sl').checked;ST.sound_file=document.getElementById('sf').value;localStorage.setItem('boss_settings',JSON.stringify(ST));stopAudio();document.getElementById('smsg').textContent='✅ 已保存';document.getElementById('smsg').style.color='var(--green)';setTimeout(closeSettings,600);}
+function saveSettings(){ST.sound_enabled=document.getElementById('se').checked;ST.sound_loop=document.getElementById('sl').checked;ST.sound_file=document.getElementById('sf').value;localStorage.setItem('boss_settings',JSON.stringify(ST));stopAudio();if(!ST.sound_enabled){cp=-1;}document.getElementById('smsg').textContent='✅ 已保存';document.getElementById('smsg').style.color='var(--green)';setTimeout(closeSettings,600);}
 
 // 音频
 function pa(loop){if(!ST.sound_enabled)return;stopAudio();var s=localStorage.getItem('boss_sound_data');if(s){cAudio=new Audio(s);cAudio.loop=!!loop;cAudio.play().catch(function(){pb(loop);});}else pb(loop);}
-function stopAudio(){if(cAudio){if(cAudio._iv){clearTimeout(cAudio._iv);cAudio._iv=null;}try{cAudio._ctx.close();}catch(e){}cAudio=null;}}
+function stopAudio(){if(cAudio){if(cAudio._iv){clearTimeout(cAudio._iv);cAudio._iv=null;}if(cAudio._ctx){try{cAudio._ctx.close();}catch(e){}}else{try{cAudio.pause();cAudio.currentTime=0;cAudio.src='';}catch(e){}}cAudio=null;}}
 function pb(loop){try{
 var ctx=new(window.AudioContext||window.webkitAudioContext)();
 if(ctx.state==='suspended'){ctx.resume();ctx.onstatechange=function(){if(ctx.state==='running')ctx.onstatechange=null;};}
