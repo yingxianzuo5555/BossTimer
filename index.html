@@ -249,10 +249,11 @@ function render(){
   sb();
   var L=document.getElementById('list');
   if(!BL.length){L.innerHTML='<div class="empty"><div class="icon">📭</div>还没有 Boss，点击「＋ 添加 Boss」开始记录</div>';document.getElementById('si').textContent='';return;}
-  document.getElementById('si').textContent='🟢 '+rc+' 已刷新 | ⚡ '+ic+' 即将 | 🔵 '+wc+' 等待';
   var rc=0,wc=0,ic=0;
   BL.forEach(function(b){var s=gs(b);if(s.t==='ready')rc++;else if(s.t==='imminent')ic++;else if(s.t==='waiting')wc++;});
-  document.getElementById('si').textContent='🟢 '+rc+' 已刷新 | ⚡ '+ic+' 即将 | 🔵 '+wc+' 等待';
+  var siEl=document.getElementById('si');
+  if(_syncError){siEl.textContent='⚠ '+_syncError;siEl.style.color='#ff6b6b';}
+  else{siEl.textContent='🟢 '+rc+' 已刷新 | ⚡ '+ic+' 即将 | 🔵 '+wc+' 等待';siEl.style.color='';}
   var ed=isEditor;
   L.innerHTML=BL.map(function(b,i){
     var s=gs(b),cls='';
@@ -269,7 +270,7 @@ function render(){
 }
 
 function uf(i,k,v){if(!isEditor)return;BL[i][k]=v;localSave();}
-function addBoss(){if(!isEditor)return;BL.push({name:'',location:'',interval:'',respawn_rate:'',next_respawn:'',last_kill:'',drop_html:'',drop_color:document.body.classList.contains('light')?'#000000':'#ffffff'});render();}
+function addBoss(){if(!isEditor)return;BL.push({name:'',location:'',interval:'',respawn_rate:'',next_respawn:'',last_kill:'',drop_html:'',drop_color:document.body.classList.contains('light')?'#000000':'#ffffff'});render();localSave();}
 function db(i){if(!isEditor)return;if(confirm('确定要删除「'+(BL[i].name||'#'+(i+1))+'」吗？')){BL.splice(i,1);render();localSave();}}
 function mk(i){if(!isEditor)return;var b=BL[i],n=new Date();b.last_kill=ft(n);var h=parseFloat(b.interval)||0;b.next_respawn=h>0?ft(new Date(n.getTime()+h*3600000)):'请设置间隔时间';mt.delete(i);if(cp===i){stopAudio();cp=-1;}ab.forEach(function(k){if(k.startsWith(i+'_'))ab.delete(k);});render();localSave();}
 function ek(i){if(!isEditor)return;var b=BL[i],cur=(b.last_kill||ft(new Date())).slice(0,16),inp=prompt('修正击杀时间（YYYY-MM-DD HH:MM）',cur);if(inp&&inp.trim()){var t=inp.trim();if(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(t)){b.last_kill=t+':00';var h=parseFloat(b.interval)||0;if(h>0){try{var lt=new Date((t+':00').replace(' ','T'));if(!isNaN(lt.getTime()))b.next_respawn=ft(new Date(lt.getTime()+h*3600000));}catch(e){}}render();localSave();}else alert('格式错误');}}
@@ -348,7 +349,7 @@ if(loop){
 
 
 // ═══════════ 数据持久化 ═══════════
-var _dirty=localStorage.getItem("boss_needs_sync")==="1",_pendingSync=null;
+var _dirty=localStorage.getItem("boss_needs_sync")==="1",_pendingSync=null,_syncError='';
 function localSave(){localStorage.setItem('boss_data',JSON.stringify(BL));_dirty=true;localStorage.setItem('boss_needs_sync','1');
   // 延迟5秒合并写入，连续操作只触发一次同步
   if(_pendingSync)clearTimeout(_pendingSync);
@@ -360,8 +361,11 @@ async function syncToServer(){
   try{
     var pw=sessionStorage.getItem('boss_pw')||'';
     var r=await fetch('/api/data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw,data:BL})});
-    if(!r.ok){_dirty=true;localStorage.setItem('boss_needs_sync','1');}
-  }catch(e){console.log('Sync:',e);_dirty=true;localStorage.setItem('boss_needs_sync','1');}
+    if(!r.ok){
+      _dirty=true;localStorage.setItem('boss_needs_sync','1');
+      _syncError=(r.status===403)?'密码错误，请重新登录':('同步失败('+r.status+')');
+    }else{_syncError='';}
+  }catch(e){console.log('Sync:',e);_dirty=true;localStorage.setItem('boss_needs_sync','1');_syncError='网络异常，同步失败';}
 }
 var _lastETag='',_lastPush=0;
 async function loadFromServer(){
