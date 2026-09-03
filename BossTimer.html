@@ -154,16 +154,24 @@ const API_URL=''; // 同域 Pages Functions，相对路径
 const USE_API=true; // 设为 false 则只用本地存储
 
 // ═══════════ 密码 ═══════════
-const DEFAULT_EDITOR_HASH='8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918';
-const DEFAULT_ADMIN_HASH='aaffebecec560fec66e75f24062224ffa4e07696d2ae9a1fee3707c3f8fd9373';
+const DEFAULT_EDITOR_HASH='2991ba545171f81bfcab16430e453f64e3d3d51588a8a819055a9ff7c196109b';
+const DEFAULT_ADMIN_HASH='6baa5045c0469b31ede759b6262da9130776b0d5aa694e4b670ac0cd29379459';
 let isEditor=false;
 
 async function sha256(m){const e=new TextEncoder().encode(m);const h=await crypto.subtle.digest('SHA-256',e);return Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,'0')).join('');}
 function getStoredPwHash(){return localStorage.getItem('boss_pw_hash')||DEFAULT_EDITOR_HASH;}
 async function checkPw(pw){const h=await sha256(pw);return h===getStoredPwHash();}
+async function syncPwHashFromServer(){
+  if(!USE_API)return;
+  try{
+    var r=await fetch('/api/auth');
+    if(r.ok){var d=await r.json();if(d&&d.editor_hash){localStorage.setItem('boss_pw_hash',d.editor_hash);}}
+  }catch(e){console.log('PwSync:',e);}
+}
 
 async function doLogin(){
   const pw=document.getElementById('pwInput').value;
+  if(USE_API){await syncPwHashFromServer();}
   if(await checkPw(pw)){
     isEditor=true;
     sessionStorage.setItem('boss_editor','1');
@@ -187,16 +195,27 @@ async function changePw(){
   const ap=document.getElementById('adminPw').value;
   if(!np){document.getElementById('pwmsg').textContent='请输入新密码';document.getElementById('pwmsg').style.color='var(--red)';return;}
   if(!ap){document.getElementById('pwmsg').textContent='请输入管理员密码';document.getElementById('pwmsg').style.color='var(--red)';return;}
-  const ah=await sha256(ap);
-  const storedAdmin=localStorage.getItem('boss_admin_hash')||DEFAULT_ADMIN_HASH;
-  if(ah!==storedAdmin){document.getElementById('pwmsg').textContent='管理员密码错误';document.getElementById('pwmsg').style.color='var(--red)';return;}
   const h=await sha256(np);
-  localStorage.setItem('boss_pw_hash',h);
-  document.getElementById('newPw').value='';document.getElementById('adminPw').value='';
-  document.getElementById('pwmsg').textContent='✅ 编辑密码已修改';document.getElementById('pwmsg').style.color='var(--green)';
-  // 同步到云端
   if(USE_API){
-    try{await fetch('/api/admin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({admin_password:ap,new_password:np})});}catch(e){}
+    try{
+      var r=await fetch('/api/admin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({admin_password:ap,new_password:np})});
+      var d=await r.json().catch(function(){return null;});
+      if(r.ok){
+        localStorage.setItem('boss_pw_hash',h);
+        document.getElementById('newPw').value='';document.getElementById('adminPw').value='';
+        document.getElementById('pwmsg').textContent='✅ 编辑密码已修改并同步云端';document.getElementById('pwmsg').style.color='var(--green)';
+      }else{
+        document.getElementById('pwmsg').textContent='❌ '+(d&&d.error?d.error:'修改失败，管理员密码错误');document.getElementById('pwmsg').style.color='var(--red)';
+      }
+    }catch(e){
+      document.getElementById('pwmsg').textContent='❌ 网络异常，未同步到云端';document.getElementById('pwmsg').style.color='var(--red)';
+    }
+  }else{
+    const ah=await sha256(ap);
+    if(ah!==DEFAULT_ADMIN_HASH){document.getElementById('pwmsg').textContent='管理员密码错误';document.getElementById('pwmsg').style.color='var(--red)';return;}
+    localStorage.setItem('boss_pw_hash',h);
+    document.getElementById('newPw').value='';document.getElementById('adminPw').value='';
+    document.getElementById('pwmsg').textContent='✅ 编辑密码已修改（本地）';document.getElementById('pwmsg').style.color='var(--green)';
   }
 }
 
@@ -409,6 +428,7 @@ function toggleTheme(){document.body.classList.toggle('light');var L=document.bo
 if(localStorage.getItem('boss_theme')==='light'){document.body.classList.add('light');document.getElementById('tb').textContent='☀️';}
 if(sessionStorage.getItem('boss_editor')==='1'){isEditor=true;}
 document.getElementById('si').textContent='⏳ 同步中...';
+syncPwHashFromServer();
 loadFromServer().then(function(){
   updateUI();
   document.getElementById('si').textContent=BL.length?'☁️ 已同步 '+BL.length+' 条':'⚠ 云端无数据';
